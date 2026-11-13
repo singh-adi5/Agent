@@ -16,6 +16,7 @@ are no real systems, accounts or identifiers anywhere in it.
 | Attack | ATT&CK | Data source | Severity | Status |
 |---|---|---|---|---|
 | [Kerberoasting](detections/kerberoasting/README.md) | [T1558.003](https://attack.mitre.org/techniques/T1558/003/) | `SecurityEvent` 4769 | Medium | Logic validated |
+| [AS-REP roasting](detections/asrep-roasting/README.md) | [T1558.004](https://attack.mitre.org/techniques/T1558/004/) | `SecurityEvent` 4768 | Medium | Logic validated |
 | [DCSync](detections/dcsync/README.md) | [T1003.006](https://attack.mitre.org/techniques/T1003/006/) | `SecurityEvent` 4662, 4624 | High | Logic validated |
 | [Password spraying](detections/password-spraying/README.md) | [T1110.003](https://attack.mitre.org/techniques/T1110/003/) | `SecurityEvent` 4771, 4625 | Medium | Logic validated |
 | [Golden Ticket](detections/golden-ticket/README.md) | [T1558.001](https://attack.mitre.org/techniques/T1558/001/) | `SecurityEvent` 4768, 4769, 4770 | Medium | Logic validated |
@@ -23,8 +24,9 @@ are no real systems, accounts or identifiers anywhere in it.
 **Status** is honest on purpose:
 
 - **Logic validated** — the query parses against Microsoft's Kusto language service,
-  reads only real `SecurityEvent` columns, and the rule passes the schema and
-  ATT&CK checks in CI.
+  reads only real `SecurityEvent` columns, passes the schema and ATT&CK checks, and
+  **fires correctly against sample events on a real Kusto engine in CI** (true
+  positives fire, tuned-out cases stay silent).
 - **Fired in lab** — additionally seen raising an incident on simulated activity in
   a live workspace, with a screenshot in [`docs/evidence/`](docs/evidence/).
 
@@ -55,7 +57,7 @@ simulations/<attack>.md                                  (how to generate the te
 deployment/            yaml_to_arm.py, dcr-securityevent.json, deploy-rules.md
 docs/                  SETUP.md, ARCHITECTURE.md, DETECTIONS.md, evidence/
 scripts/               validate_rules.py, kql_check.js, securityevent.schema
-tests/                 test_tooling.py
+tests/                 test_tooling.py, run_logic_tests.py, logic/<detection>.json
 .github/workflows/     kql-validate.yml
 ```
 
@@ -82,7 +84,16 @@ python -m unittest discover -s tests        # validator and converter tests
 npm ci --ignore-scripts && npm run kql-check # KQL syntax and column analysis
 ```
 
-CI runs all three on every push and pull request
+For the execution tests, start a local Kusto engine first, then run them:
+
+```bash
+docker run -d --name kustainer -p 8080:8080 -e ACCEPT_EULA=Y -m 4G \
+  mcr.microsoft.com/azuredataexplorer/kustainer-linux:latest
+python tests/run_logic_tests.py        # each query, run against sample events
+```
+
+CI runs the first three on every push and pull request, and the logic tests in a
+second job against a Kusto engine service container
 ([.github/workflows/kql-validate.yml](.github/workflows/kql-validate.yml)).
 
 ## Design notes

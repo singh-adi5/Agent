@@ -22,3 +22,6 @@ __pycache__/
 .venv/
 node_modules/
 .DS_Store
+
+# project conventions kept private, not in public view
+CLAUDE.md

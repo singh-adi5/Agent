@@ -5,22 +5,25 @@ still needs a live Azure run.
 
 ## Done and verified by automation
 
-- [x] Repo skeleton: README, CLAUDE.md, LICENSE (MIT), SECURITY.md, .gitignore, PROGRESS.md
+- [x] Repo skeleton: README, LICENSE (MIT), SECURITY.md, .gitignore, PROGRESS.md
 - [x] docs/ARCHITECTURE.md with data-flow diagram and the seven-event-ID rationale
 - [x] docs/SETUP.md: Azure, DC, attacker host, workspace, AMA, DCR, step by step
 - [x] Detection 1 Kerberoasting: query.kql, rule.yaml, README, simulation
+- [x] Detection 1b AS-REP roasting (T1558.004): query.kql, rule.yaml, README, simulation
 - [x] Detection 2 DCSync: query.kql, rule.yaml, README, simulation
 - [x] Detection 3 Password spraying: query.kql, rule.yaml, README, simulation
 - [x] Detection 4 Golden Ticket: query.kql, rule.yaml, README, simulation
 - [x] deployment/: yaml_to_arm.py converter + dcr-securityevent.json + deploy-rules.md
 - [x] scripts/: validate_rules.py, kql_check.js (Kusto parser), securityevent.schema
-- [x] tests/: 16 unit tests for the validator, the schema file and the converter
-- [x] CI: .github/workflows/kql-validate.yml, Actions pinned to SHAs, read-only token
+- [x] tests/: 22 unit tests, plus logic tests that run each query on a Kusto engine
+- [x] CI: .github/workflows/kql-validate.yml, two jobs (static checks + logic tests on a
+      Kusto service container), Actions pinned to SHAs, read-only token, hash-pinned deps
 
 ### Automated checks, all passing
 
 - `python scripts/validate_rules.py` -> 4 of 4 rules PASS
-- `python -m unittest discover -s tests` -> 16 tests OK
+- `python -m unittest discover -s tests` -> 22 tests OK
+- `python tests/run_logic_tests.py` -> 15 of 15 logic cases pass on a real Kusto engine
 - `npm run kql-check` -> 4 of 4 queries parse and analyse clean against the SecurityEvent schema
 
 What the checks prove: every query is valid KQL, references only real SecurityEvent
@@ -28,7 +31,19 @@ columns, carries its header block and false-positive filter; every rule has all
 required Sentinel fields, a correct ATT&CK id, and a query identical to its .kql
 file; the converter emits four disabled rules with no identifiers.
 
-## Review fixes
+## Review fixes (round 2)
+
+- Added AS-REP roasting (T1558.004) as a fifth detection, with its own logic-test fixture.
+- Added execution tests: each query runs against sample events on a Microsoft Kusto
+  emulator, asserting true positives fire and tuned-out cases stay silent. 15 cases.
+- Kerberoasting had the same ingestion-delay gap fixed in the others; queryPeriod is
+  now 1h5m so runs overlap.
+- Hardened the rule validator: the output-column check no longer counts identifiers
+  inside an unaliased function call, handles multi-line projects, and no longer
+  crashes on a malformed customDetails or fieldMappings. New tests cover each.
+- Hash-pinned PyYAML and switched CI to `pip install --require-hashes`.
+
+## Review fixes (round 1)
 
 Found in a second review pass and fixed:
 

@@ -1,6 +1,6 @@
 # Deploy the analytics rules
 
-The four rules live in `detections/*/rule.yaml`. That is the format Microsoft uses
+The rules live in `detections/*/rule.yaml`. That is the format Microsoft uses
 for rule templates in the Azure-Sentinel GitHub repository. The Sentinel portal does
 not import that YAML directly: it imports ARM template JSON. So there is one small
 conversion step.
@@ -14,7 +14,7 @@ conversion step.
 2. In `detections/dcsync/query.kql` **and** `detections/dcsync/rule.yaml`, set
    `domain_controllers` to the lower-case computer account of every domain
    controller. The default is `["dc01$"]`, which is right for this lab.
-3. `python scripts/validate_rules.py` prints `PASS` for all four.
+3. `python scripts/validate_rules.py` prints `PASS` for every rule.
 
 ## Option A: Azure CLI
 
@@ -38,7 +38,7 @@ Redeploying updates the rules in place, because each rule keeps the GUID from th
 
 1. Generate `sentinel-rules.arm.json` as above.
 2. In Sentinel, open **Analytics** > **Import**.
-3. Select the file. All four rules are created.
+3. Select the file. Every rule is created.
 
 ## Option C: by hand
 
@@ -61,7 +61,8 @@ guide in [`simulations/`](../simulations/).
 
 | Rule | Runs every | Looks back | Severity |
 |---|---|---|---|
-| Kerberoasting | 1 hour | 1 hour | Medium |
+| Kerberoasting | 1 hour | 1h 5m | Medium |
+| AS-REP roasting | 1 hour | 1h 5m | Medium |
 | DCSync | 15 minutes | 1 hour | High |
 | Password spraying | 15 minutes | 30 minutes | Medium |
 | Golden Ticket | 1 hour | 12 hours | Medium |

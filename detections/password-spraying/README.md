@@ -24,7 +24,8 @@ The signal is on the source, not the account. The query collects two kinds of fa
 | 4625 | NTLM and interactive logon | `SubStatus` 0xC000006A wrong password, 0xC0000064 unknown user |
 
 It groups them by source address and fires when one address fails against **10 or
-more distinct accounts** in the 30 minute period with **5 or fewer attempts per
+more distinct accounts** in the 30 minute period (the rule runs every 15 minutes, so
+a spray that crosses a run boundary is still counted whole) with **5 or fewer attempts per
 account**. The second condition separates a spray (wide and shallow) from a brute
 force (narrow and deep) and from a single broken service account retrying.
 

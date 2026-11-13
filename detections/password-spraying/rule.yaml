@@ -13,7 +13,7 @@ requiredDataConnectors:
   - connectorId: SecurityEvents
     dataTypes:
       - SecurityEvent
-queryFrequency: 30m
+queryFrequency: 15m
 queryPeriod: 30m
 triggerOperator: gt
 triggerThreshold: 0

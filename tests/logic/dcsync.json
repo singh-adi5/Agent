@@ -1,0 +1,26 @@
+{
+  "cases": [
+    {
+      "name": "non-DC account replicates directory changes",
+      "expect": "fire",
+      "events": [
+        {"TimeGenerated": 5, "EventID": 4662, "ObjectServer": "DS", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "SubjectLogonId": "0x3e7abc", "Properties": "... 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2 ..."},
+        {"TimeGenerated": 6, "EventID": 4624, "LogonType": 3, "Computer": "", "TargetLogonId": "0x3e7abc", "IpAddress": "10.10.1.10"}
+      ]
+    },
+    {
+      "name": "a real domain controller replicating is normal",
+      "expect": "silent",
+      "events": [
+        {"TimeGenerated": 5, "EventID": 4662, "ObjectServer": "DS", "SubjectUserName": "DC01$", "SubjectDomainName": "CONTOSO", "SubjectLogonId": "0x3e4", "Properties": "... 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2 ..."}
+      ]
+    },
+    {
+      "name": "non-DC directory access without a replication right",
+      "expect": "silent",
+      "events": [
+        {"TimeGenerated": 5, "EventID": 4662, "ObjectServer": "DS", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "SubjectLogonId": "0x3e7", "Properties": "... some-other-guid-00000000-0000 ..."}
+      ]
+    }
+  ]
+}

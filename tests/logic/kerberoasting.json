@@ -1,0 +1,39 @@
+{
+  "cases": [
+    {
+      "name": "one user pulls RC4 tickets for three SPNs",
+      "expect": "fire",
+      "events": [
+        {"TimeGenerated": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-sql",    "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
+        {"TimeGenerated": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-web",    "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
+        {"TimeGenerated": 4, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-backup", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"}
+      ]
+    },
+    {
+      "name": "same three SPNs but AES tickets, not RC4",
+      "expect": "silent",
+      "events": [
+        {"TimeGenerated": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-sql",    "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x12</Data>"},
+        {"TimeGenerated": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-web",    "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x12</Data>"},
+        {"TimeGenerated": 4, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-backup", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x12</Data>"}
+      ]
+    },
+    {
+      "name": "only two RC4 SPNs, below the threshold",
+      "expect": "silent",
+      "events": [
+        {"TimeGenerated": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-sql", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
+        {"TimeGenerated": 4, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-web", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"}
+      ]
+    },
+    {
+      "name": "a computer account requesting its own service tickets",
+      "expect": "silent",
+      "events": [
+        {"TimeGenerated": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-sql",    "TargetUserName": "WS01$@CONTOSO.LOCAL", "IpAddress": "10.10.1.50", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
+        {"TimeGenerated": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-web",    "TargetUserName": "WS01$@CONTOSO.LOCAL", "IpAddress": "10.10.1.50", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
+        {"TimeGenerated": 4, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-backup", "TargetUserName": "WS01$@CONTOSO.LOCAL", "IpAddress": "10.10.1.50", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"}
+      ]
+    }
+  ]
+}

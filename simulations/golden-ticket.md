@@ -52,7 +52,7 @@ On DC01, a successful **4769** where:
 
 Paste `detections/golden-ticket/query.kql` into Sentinel **Logs** over the last
 hour. The anti-join should return a row for `labadmin` from the attacker address.
-The scheduled rule (High severity) then raises an alert. Screenshot it into
+The scheduled rule then raises an alert. Screenshot it into
 [`docs/evidence/`](../docs/evidence/).
 
 If nothing returns, the usual cause is a masking real TGT (see above) or Kerberos

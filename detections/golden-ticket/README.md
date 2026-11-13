@@ -5,7 +5,7 @@
 | ATT&CK | [T1558.001](https://attack.mitre.org/techniques/T1558/001/) Steal or Forge Kerberos Tickets: Golden Ticket |
 | Tactic | Credential Access |
 | Data source | `SecurityEvent`, EventIDs 4768, 4769, 4770 |
-| Severity | High |
+| Severity | Medium |
 | Files | [`query.kql`](query.kql), [`rule.yaml`](rule.yaml), [simulation](../../simulations/golden-ticket.md) |
 
 ## Technique
@@ -42,6 +42,7 @@ event 4769 logs `alice@CONTOSO.LOCAL`, so comparing raw values matches nothing.
 ## False positives and tuning
 
 This is a correlation, and it is noisier than the other three rules. Expect to tune it.
+Severity is Medium for that reason. Raise it to High once the rule is quiet in your estate.
 
 - **A domain controller whose events are not collected.** If a client got its TGT
   from DC02 and DC02 is not sending logs, every service ticket it requests from

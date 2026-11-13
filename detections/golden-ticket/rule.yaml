@@ -6,7 +6,7 @@ description: |
   is never requested from the KDC, so this gap is the trace left by Mimikatz kerberos::golden, Rubeus
   golden and Impacket ticketer.py. Needs Kerberos events from every domain controller. MITRE ATT&CK
   T1558.001.
-severity: High
+severity: Medium
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
     dataTypes:
@@ -33,10 +33,12 @@ query: |
   //              from every domain controller in the domain
   // ATT&CK:      T1558.001 (Steal or Forge Kerberos Tickets: Golden Ticket)
   // Fires when:  a user account is granted a service ticket in the last hour from an
-  //              address where it has no TGT issue or renewal in the last 12 hours.
+  //              address where it has no TGT issue or renewal in the lookback period.
   // Longer than the default 10 hour TGT lifetime. Raise it if the domain policy is longer.
   let tgt_lookback = 12h;
-  let detection_window = 1h;
+  // queryFrequency (1h) plus the 5 minute delay Sentinel applies to every scheduled run.
+  // Without the extra 5 minutes each run would skip a slice of events.
+  let detection_window = 65m;
   // Lower-case sAMAccountNames with a known reason to roam between addresses.
   let excluded_accounts = dynamic([]);
   let kerberos_events = SecurityEvent
@@ -67,9 +69,12 @@ query: |
       StartTime = min(TimeGenerated),
       EndTime = max(TimeGenerated),
       TicketRequests = count(),
-      Services = make_set(Service, 50)
-      by Computer, AccountName, SourceIp
-  | project StartTime, EndTime, Computer, AccountName, SourceIp, TicketRequests, Services
+      Services = make_set(Service, 50),
+      DomainControllers = make_set(Computer, 20),
+      Computer = take_any(Computer)
+      // Grouped across domain controllers, so one forged ticket used against several DCs is one alert.
+      by AccountName, SourceIp
+  | project StartTime, EndTime, Computer, DomainControllers, AccountName, SourceIp, TicketRequests, Services
 entityMappings:
   - entityType: Account
     fieldMappings:

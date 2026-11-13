@@ -16,6 +16,7 @@ import yaml_to_arm  # noqa: E402
 
 EXPECTED = {
     "kerberoasting": "T1558.003",
+    "asrep-roasting": "T1558.004",
     "dcsync": "T1003.006",
     "password-spraying": "T1110.003",
     "golden-ticket": "T1558.001",
@@ -37,6 +38,20 @@ class RepositoryRules(unittest.TestCase):
 
     def test_main_exit_code(self):
         self.assertEqual(validate_rules.main(["validate_rules.py", str(ROOT)]), 0)
+
+
+class OutputColumnParsing(unittest.TestCase):
+    def test_unaliased_function_arguments_are_not_counted(self):
+        q = "SecurityEvent\n| project Requester, Blob = pack('ip', SourceIp, 'host', Computer)"
+        self.assertEqual(validate_rules.output_columns(q), {"Requester", "Blob"})
+
+    def test_multi_line_project_keeps_all_columns(self):
+        q = "SecurityEvent\n| project\n    StartTime,\n    SourceIp,\n    Computer"
+        self.assertEqual(validate_rules.output_columns(q), {"StartTime", "SourceIp", "Computer"})
+
+    def test_let_statements_before_the_pipeline_are_ignored(self):
+        q = "let x = 3;\nSecurityEvent | project A, B"
+        self.assertEqual(validate_rules.output_columns(q), {"A", "B"})
 
 
 class ValidatorRejectsBrokenRules(unittest.TestCase):
@@ -79,6 +94,24 @@ class ValidatorRejectsBrokenRules(unittest.TestCase):
             rule["entityMappings"][0]["fieldMappings"][0]["columnName"] = "NoSuchColumn"
         self.assertTrue(any("NoSuchColumn" in e for e in self.mutate(change)))
 
+    def test_entity_mapped_to_a_function_argument_only_fails(self):
+        # SourceIp appears only inside a pack() in the final project, not as an output column.
+        def change(rule):
+            q = rule["query"].rstrip()
+            rule["query"] = q + "\n| project Requester, Detail = pack('ip', SourceIp)"
+            (self.rule_path.with_name("query.kql")).write_text(rule["query"])
+            rule["entityMappings"] = [{"entityType": "IP", "fieldMappings": [{"identifier": "Address", "columnName": "SourceIp"}]}]
+        self.assertTrue(any("SourceIp" in e for e in self.mutate(change)))
+
+    def test_customdetails_as_a_list_does_not_crash(self):
+        errors = self.mutate(lambda rule: rule.update(customDetails=["Requester"]))
+        self.assertTrue(any("customDetails must be a mapping" in e for e in errors))
+
+    def test_main_survives_a_malformed_rule(self):
+        self.rule_path.write_text("entityMappings: not-a-list\nid: 1\n")
+        # Must return a failure code, not raise.
+        self.assertEqual(validate_rules.main(["validate_rules.py", str(self.tmp)]), 1)
+
     def test_entity_column_named_only_in_a_comment_fails(self):
         # RawUser is used inside the query but is not in its final project.
         def change(rule):
@@ -113,9 +146,9 @@ class ArmConversion(unittest.TestCase):
         with self.assertRaises(ValueError):
             yaml_to_arm.iso8601("soon")
 
-    def test_template_holds_four_disabled_rules_and_no_identifiers(self):
+    def test_template_holds_every_rule_disabled_and_no_identifiers(self):
         template = yaml_to_arm.build_template(ROOT)
-        self.assertEqual(len(template["resources"]), 4)
+        self.assertEqual(len(template["resources"]), len(list((ROOT / "detections").glob("*/rule.yaml"))))
         for resource in template["resources"]:
             self.assertEqual(resource["kind"], "Scheduled")
             self.assertFalse(resource["properties"]["enabled"])

@@ -51,13 +51,56 @@ def to_minutes(value: object) -> int | None:
     return int(match.group(1)) * MINUTES[match.group(2)]
 
 
+def split_top_level(text: str, separator: str) -> list[str]:
+    """Split on `separator`, ignoring any inside (), [], or quotes."""
+    parts, depth, quote, start = [], 0, "", 0
+    for i, char in enumerate(text):
+        if quote:
+            if char == quote:
+                quote = ""
+        elif char in "\"'":
+            quote = char
+        elif char in "([":
+            depth += 1
+        elif char in ")]":
+            depth -= 1
+        elif char == separator and depth == 0:
+            parts.append(text[start:i])
+            start = i + 1
+    parts.append(text[start:])
+    return parts
+
+
+IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def output_columns(query: str) -> set[str]:
-    """Columns named by the final `| project` of the query, ignoring comments."""
+    """Columns the final `project` emits: aliases and bare column names only.
+
+    An unaliased expression such as `pack(...)` emits no name we can verify, so it
+    is ignored rather than counted by the identifiers inside it. Comments and the
+    `let` statements before the main pipeline are stripped first.
+    """
     code = "\n".join(line for line in query.splitlines() if not line.lstrip().startswith("//"))
-    projects = re.findall(r"^\|\s*project\s+(.+)$", code, flags=re.MULTILINE)
-    if not projects:
+    pipeline = split_top_level(code, ";")[-1]
+    segments = split_top_level(pipeline, "|")
+    project = None
+    for segment in segments:
+        stripped = segment.strip()
+        if stripped.startswith(("project ", "project-reorder ", "project\n", "project-reorder\n")):
+            project = stripped.split(None, 1)[1]
+    if project is None:
         return set()
-    return {part.split("=")[0].strip() for part in projects[-1].split(",")}
+
+    columns = set()
+    for term in split_top_level(project, ","):
+        term = term.strip()
+        if not term:
+            continue
+        head = split_top_level(term, "=")[0].strip()  # the alias, or the term itself
+        if IDENTIFIER.match(head):
+            columns.add(head)
+    return columns
 
 
 def normalise(query: str) -> str:
@@ -139,15 +182,22 @@ def validate_rule(rule_path: Path) -> list[str]:
         if not isinstance(mapping, dict) or not mapping.get("entityType") or not fields:
             errors.append("each entityMappings entry needs entityType and fieldMappings")
             continue
+        if not isinstance(fields, list):
+            errors.append("fieldMappings must be a list")
+            continue
         for field in fields:
             column = field.get("columnName") if isinstance(field, dict) else None
             if not column or not field.get("identifier"):
                 errors.append("each fieldMappings entry needs identifier and columnName")
             elif column not in produced:
                 errors.append(f"entity column '{column}' is not produced by the query")
-    for column in (rule.get("customDetails") or {}).values():
-        if str(column) not in produced:
-            errors.append(f"customDetails column '{column}' is not produced by the query")
+    custom = rule.get("customDetails") or {}
+    if not isinstance(custom, dict):
+        errors.append("customDetails must be a mapping of name to column")
+    else:
+        for column in custom.values():
+            if str(column) not in produced:
+                errors.append(f"customDetails column '{column}' is not produced by the query")
     return errors
 
 
@@ -161,7 +211,10 @@ def main(argv: list[str]) -> int:
     failed = 0
     seen_ids: dict[str, Path] = {}
     for rule_path in rule_paths:
-        errors = validate_rule(rule_path)
+        try:
+            errors = validate_rule(rule_path)
+        except Exception as exc:  # a malformed file must fail this rule, not abort the run
+            errors = [f"could not be validated: {exc!r}"]
         try:
             rule_id = str(yaml.safe_load(rule_path.read_text(encoding="utf-8")).get("id"))
         except (yaml.YAMLError, AttributeError):

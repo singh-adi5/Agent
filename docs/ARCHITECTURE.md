@@ -54,8 +54,9 @@ would make two of these detections easier, but they need a licence a trial
 subscription does not include. Everything here runs on raw Windows events.
 
 **Kerberos fields are read two ways.** For events 4768 to 4771 the queries use the
-typed column (`TicketEncryptionType`, `ServiceName`, `Status`) when it is populated
-and fall back to extracting the same field from `EventData`. Microsoft's own
+typed column (`ServiceName`, `Status`) when it is populated and fall back to
+extracting the same field from `EventData`. The ticket encryption type has no typed
+column in `SecurityEvent` and is always read from `EventData`. Microsoft's own
 Kerberoasting rule template parses `EventData` for these events, so the fallback is
 there for workspaces where the typed columns arrive empty.
 

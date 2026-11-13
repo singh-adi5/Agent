@@ -16,7 +16,7 @@ are no real systems, accounts or identifiers anywhere in it.
 | [Kerberoasting](detections/kerberoasting/README.md) | [T1558.003](https://attack.mitre.org/techniques/T1558/003/) | `SecurityEvent` 4769 | Medium | Logic validated |
 | [DCSync](detections/dcsync/README.md) | [T1003.006](https://attack.mitre.org/techniques/T1003/006/) | `SecurityEvent` 4662, 4624 | High | Logic validated |
 | [Password spraying](detections/password-spraying/README.md) | [T1110.003](https://attack.mitre.org/techniques/T1110/003/) | `SecurityEvent` 4771, 4625 | Medium | Logic validated |
-| [Golden Ticket](detections/golden-ticket/README.md) | [T1558.001](https://attack.mitre.org/techniques/T1558/001/) | `SecurityEvent` 4768, 4769, 4770 | High | Logic validated |
+| [Golden Ticket](detections/golden-ticket/README.md) | [T1558.001](https://attack.mitre.org/techniques/T1558/001/) | `SecurityEvent` 4768, 4769, 4770 | Medium | Logic validated |
 
 **Status** is honest on purpose:
 
@@ -88,8 +88,12 @@ CI runs all three on every push and pull request
 - **`SecurityEvent` only.** Everything runs on raw Windows events an Azure trial can
   collect, not on licensed Defender for Identity tables.
 - **Columns are checked.** A query may only read a column listed in
-  [`scripts/securityevent.schema`](scripts/securityevent.schema), verified against
-  Microsoft's Kusto parser in CI. No invented fields.
+  [`scripts/securityevent.schema`](scripts/securityevent.schema). That list was checked
+  against Microsoft's Azure Monitor Logs reference for `SecurityEvent`, and CI runs
+  every query through Microsoft's Kusto parser against it. No invented fields.
+- **No gaps between runs.** Sentinel runs scheduled rules five minutes behind real
+  time. Windows inside the queries allow for that, and overlapping runs are grouped
+  into one incident.
 - **Rules deploy disabled.** The converter sets `enabled: false` so each rule's
   allow-lists are tuned before it is switched on.
 - **Honest about gaps.** Each detection README lists what it does **not** catch (AES

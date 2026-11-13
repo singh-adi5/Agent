@@ -14,19 +14,39 @@ still needs a live Azure run.
 - [x] Detection 4 Golden Ticket: query.kql, rule.yaml, README, simulation
 - [x] deployment/: yaml_to_arm.py converter + dcr-securityevent.json + deploy-rules.md
 - [x] scripts/: validate_rules.py, kql_check.js (Kusto parser), securityevent.schema
-- [x] tests/: 13 unit tests for the validator and the converter
+- [x] tests/: 16 unit tests for the validator, the schema file and the converter
 - [x] CI: .github/workflows/kql-validate.yml, Actions pinned to SHAs, read-only token
 
 ### Automated checks, all passing
 
 - `python scripts/validate_rules.py` -> 4 of 4 rules PASS
-- `python -m unittest discover -s tests` -> 13 tests OK
+- `python -m unittest discover -s tests` -> 16 tests OK
 - `npm run kql-check` -> 4 of 4 queries parse and analyse clean against the SecurityEvent schema
 
 What the checks prove: every query is valid KQL, references only real SecurityEvent
 columns, carries its header block and false-positive filter; every rule has all
 required Sentinel fields, a correct ATT&CK id, and a query identical to its .kql
 file; the converter emits four disabled rules with no identifiers.
+
+## Review fixes
+
+Found in a second review pass and fixed:
+
+- `TicketEncryptionType` is not a column in `SecurityEvent`. The Kerberoasting query
+  read it as one and would have failed in a workspace. It now reads the field from
+  `EventData`. The schema file was then checked column by column against the Azure
+  Monitor Logs reference for `SecurityEvent`.
+- DCSync and Golden Ticket windows now allow for the 5 minute delay on scheduled
+  runs, so no slice of events is skipped between runs.
+- Kerberoasting and Golden Ticket group across domain controllers, not per DC.
+- Password spraying runs every 15 minutes over 30, so a spray across a run boundary
+  is counted whole. Incident grouping absorbs the repeat alert.
+- Golden Ticket severity lowered to Medium. It is a correlation and needs tuning.
+- The validator now checks entity and custom detail columns against the query's
+  final `project`, not against any text in the query.
+
+Still not verified, and only a live workspace can do it: the ARM template deploy,
+the setup guide end to end, and the behaviour of each rule on real events.
 
 ## NEEDS HUMAN — requires your Azure tenant and hands
 

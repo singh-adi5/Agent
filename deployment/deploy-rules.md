@@ -63,8 +63,12 @@ guide in [`simulations/`](../simulations/).
 |---|---|---|---|
 | Kerberoasting | 1 hour | 1 hour | Medium |
 | DCSync | 15 minutes | 1 hour | High |
-| Password spraying | 30 minutes | 30 minutes | Medium |
-| Golden Ticket | 1 hour | 12 hours | High |
+| Password spraying | 15 minutes | 30 minutes | Medium |
+| Golden Ticket | 1 hour | 12 hours | Medium |
+
+The password spraying rule looks back further than it runs, so a spray that crosses
+a run boundary is still counted whole. The same spray can therefore alert twice.
+The converter turns on incident grouping by entity, so both alerts land in one incident.
 
 A rule only evaluates on its schedule. After a simulation, either wait for the next
 run or paste the query into **Logs** to see the result at once.

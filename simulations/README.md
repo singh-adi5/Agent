@@ -24,6 +24,7 @@ real intrusion comes from the DCSync step.
 | Order | Guide | Technique | Rule it should fire |
 |---|---|---|---|
 | 1 | [kerberoasting.md](kerberoasting.md) | T1558.003 | Kerberoasting |
+| 1b | [asrep-roasting.md](asrep-roasting.md) | T1558.004 | AS-REP roasting |
 | 2 | [password-spraying.md](password-spraying.md) | T1110.003 | Password spraying |
 | 3 | [dcsync.md](dcsync.md) | T1003.006 | DCSync |
 | 4 | [golden-ticket.md](golden-ticket.md) | T1558.001 | Golden Ticket |

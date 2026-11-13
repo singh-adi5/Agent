@@ -37,7 +37,7 @@ flowchart LR
 | 4624 | Successful logon | DCSync (source address lookup) |
 | 4625 | Failed logon | Password spraying |
 | 4662 | Operation performed on a directory object | DCSync |
-| 4768 | Kerberos TGT requested | Golden Ticket |
+| 4768 | Kerberos TGT requested | Golden Ticket, AS-REP roasting |
 | 4769 | Kerberos service ticket requested | Kerberoasting, Golden Ticket |
 | 4770 | Kerberos service ticket renewed | Golden Ticket |
 | 4771 | Kerberos pre-authentication failed | Password spraying |

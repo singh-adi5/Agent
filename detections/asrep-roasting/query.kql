@@ -1,0 +1,42 @@
+// Name:        AS-REP roasting - RC4 TGT issued to an account that needs no pre-authentication
+// Purpose:     Find accounts set to "do not require Kerberos pre-authentication" being
+//              issued RC4-encrypted TGTs, the pattern left by Rubeus asreproast and
+//              Impacket GetNPUsers.py. The AS-REP is crackable offline.
+// Data source: SecurityEvent (Windows Security Events via AMA), EventID 4768 on domain controllers
+// ATT&CK:      T1558.004 (Steal or Forge Kerberos Tickets: AS-REP Roasting)
+// Fires when:  one source address is issued RC4 (0x17 / 0x18) TGTs with pre-auth type 0
+//              for one or more accounts inside the query period.
+let account_threshold = 1;
+// Lower-case sAMAccountNames legitimately set to not require pre-authentication.
+let excluded_targets = dynamic([]);
+SecurityEvent
+| where EventID == 4768
+// SecurityEvent has no column for the pre-auth type or the encryption type, so both are read from the raw event XML.
+| extend
+    KrbStatus = iff(isnotempty(Status), Status, extract(@'"Status">([^<]*)<', 1, EventData)),
+    EncType = extract(@'"TicketEncryptionType">([^<]*)<', 1, EventData),
+    PreAuthType = extract(@'"PreAuthType">([^<]*)<', 1, EventData),
+    RawUser = iff(isnotempty(TargetUserName), TargetUserName, extract(@'"TargetUserName">([^<]*)<', 1, EventData)),
+    RawIp = iff(isnotempty(IpAddress), IpAddress, extract(@'"IpAddress">([^<]*)<', 1, EventData))
+| where KrbStatus =~ "0x0"
+// Pre-auth type 0 means the account authenticated with no pre-authentication, which is the misconfiguration this abuses.
+| where PreAuthType == "0"
+// RC4 is requested because it cracks faster than AES.
+| where EncType in~ ("0x17", "0x18")
+| extend
+    TargetAccount = tolower(tostring(split(RawUser, "@")[0])),
+    SourceIp = replace_string(RawIp, "::ffff:", "")
+| where isnotempty(TargetAccount) and TargetAccount !endswith "$"
+| where TargetAccount !in (excluded_targets)
+| summarize
+    StartTime = min(TimeGenerated),
+    EndTime = max(TimeGenerated),
+    AccountsTargeted = dcount(TargetAccount),
+    Accounts = make_set(TargetAccount, 100),
+    TgtRequests = count(),
+    DomainControllers = make_set(Computer, 20),
+    Computer = take_any(Computer)
+    // Grouped across domain controllers, so requests spread over several DCs still add up.
+    by SourceIp
+| where AccountsTargeted >= account_threshold
+| project StartTime, EndTime, Computer, DomainControllers, SourceIp, AccountsTargeted, TgtRequests, Accounts

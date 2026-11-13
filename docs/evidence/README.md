@@ -27,6 +27,7 @@ Suggested file names:
 
 ```
 kerberoasting-incident.png      kerberoasting-logs.png
+asrep-roasting-incident.png     asrep-roasting-logs.png
 dcsync-incident.png             dcsync-logs.png
 password-spraying-incident.png  password-spraying-logs.png
 golden-ticket-incident.png      golden-ticket-logs.png

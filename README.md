@@ -1,5 +1,7 @@
 # sentinel-ad-attack-detection
 
+> Repository: `singh-adi5/Agent`. The project name below is the detection lab's name.
+
 Detection engineering for four classic Active Directory attacks on **Microsoft
 Sentinel**. Each attack has a KQL detection, a Sentinel scheduled analytics rule in
 YAML, a MITRE ATT&CK mapping, a lab simulation guide and tuning notes.
@@ -7,7 +9,7 @@ YAML, a MITRE ATT&CK mapping, a lab simulation guide and tuning notes.
 This is an independent lab on synthetic data. The domain is `contoso.local`. There
 are no real systems, accounts or identifiers anywhere in it.
 
-[![kql-validate](https://github.com/singh-adi5/sentinel-ad-attack-detection/actions/workflows/kql-validate.yml/badge.svg)](https://github.com/singh-adi5/sentinel-ad-attack-detection/actions/workflows/kql-validate.yml)
+[![kql-validate](https://github.com/singh-adi5/Agent/actions/workflows/kql-validate.yml/badge.svg)](https://github.com/singh-adi5/Agent/actions/workflows/kql-validate.yml)
 
 ## Detections
 

@@ -52,8 +52,10 @@ def to_resource(rule: dict) -> dict:
         "entityMappings": rule["entityMappings"],
         "incidentConfiguration": {
             "createIncident": True,
+            # Runs overlap on purpose so no event is skipped. Grouping folds the
+            # repeat alerts for the same entities into one incident.
             "groupingConfiguration": {
-                "enabled": False,
+                "enabled": True,
                 "reopenClosedIncident": False,
                 "lookbackDuration": "PT5H",
                 "matchingMethod": "AllEntities",

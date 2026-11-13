@@ -79,6 +79,16 @@ class ValidatorRejectsBrokenRules(unittest.TestCase):
             rule["entityMappings"][0]["fieldMappings"][0]["columnName"] = "NoSuchColumn"
         self.assertTrue(any("NoSuchColumn" in e for e in self.mutate(change)))
 
+    def test_entity_column_named_only_in_a_comment_fails(self):
+        # RawUser is used inside the query but is not in its final project.
+        def change(rule):
+            rule["entityMappings"][0]["fieldMappings"][0]["columnName"] = "RawUser"
+        self.assertTrue(any("RawUser" in e for e in self.mutate(change)))
+
+    def test_custom_detail_column_not_in_output_fails(self):
+        errors = self.mutate(lambda rule: rule.update(customDetails={"Enc": "EncType"}))
+        self.assertTrue(any("customDetails column 'EncType'" in e for e in errors))
+
     def test_period_shorter_than_frequency_fails(self):
         errors = self.mutate(lambda rule: rule.update(queryFrequency="1h", queryPeriod="30m"))
         self.assertTrue(any("queryPeriod is shorter" in e for e in errors))
@@ -86,6 +96,13 @@ class ValidatorRejectsBrokenRules(unittest.TestCase):
     def test_main_fails_on_broken_rule(self):
         self.mutate(lambda rule: rule.pop("severity"))
         self.assertEqual(validate_rules.main(["validate_rules.py", str(self.tmp)]), 1)
+
+
+class SchemaFile(unittest.TestCase):
+    def test_columns_absent_from_the_real_table_are_not_listed(self):
+        schema = (ROOT / "scripts" / "securityevent.schema").read_text()
+        names = {l.split(":")[0].strip() for l in schema.splitlines() if l.strip() and not l.startswith("#")}
+        self.assertFalse(names & {"TicketEncryptionType", "TicketOptions"})
 
 
 class ArmConversion(unittest.TestCase):

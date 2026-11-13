@@ -51,6 +51,15 @@ def to_minutes(value: object) -> int | None:
     return int(match.group(1)) * MINUTES[match.group(2)]
 
 
+def output_columns(query: str) -> set[str]:
+    """Columns named by the final `| project` of the query, ignoring comments."""
+    code = "\n".join(line for line in query.splitlines() if not line.lstrip().startswith("//"))
+    projects = re.findall(r"^\|\s*project\s+(.+)$", code, flags=re.MULTILINE)
+    if not projects:
+        return set()
+    return {part.split("=")[0].strip() for part in projects[-1].split(",")}
+
+
 def normalise(query: str) -> str:
     return "\n".join(line.rstrip() for line in query.strip().splitlines())
 
@@ -118,6 +127,10 @@ def validate_rule(rule_path: Path) -> list[str]:
     elif normalise(kql_path.read_text(encoding="utf-8")) != normalise(query):
         errors.append("query in rule.yaml differs from query.kql")
 
+    produced = output_columns(query)
+    if not produced:
+        errors.append("query must end with a '| project' that lists its output columns")
+
     mappings = rule["entityMappings"]
     if not isinstance(mappings, list):
         return errors + ["entityMappings must be a list"]
@@ -130,10 +143,10 @@ def validate_rule(rule_path: Path) -> list[str]:
             column = field.get("columnName") if isinstance(field, dict) else None
             if not column or not field.get("identifier"):
                 errors.append("each fieldMappings entry needs identifier and columnName")
-            elif not re.search(rf"\b{re.escape(column)}\b", query):
+            elif column not in produced:
                 errors.append(f"entity column '{column}' is not produced by the query")
     for column in (rule.get("customDetails") or {}).values():
-        if not re.search(rf"\b{re.escape(str(column))}\b", query):
+        if str(column) not in produced:
             errors.append(f"customDetails column '{column}' is not produced by the query")
     return errors
 

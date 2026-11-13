@@ -6,9 +6,11 @@
 //              joined to EventID 4624 for the source address
 // ATT&CK:      T1003.006 (OS Credential Dumping: DCSync)
 // Fires when:  any account outside the domain controller and approved replication
-//              lists exercises a DS-Replication-Get-Changes* right in the last 15 minutes.
-// Matches the rule's queryFrequency. The longer queryPeriod only feeds the 4624 lookup.
-let detection_window = 15m;
+//              lists exercises a DS-Replication-Get-Changes* right.
+// queryFrequency (15m) plus the 5 minute delay Sentinel applies to every scheduled run.
+// Without the extra 5 minutes each run would skip a slice of events.
+// The longer queryPeriod only feeds the 4624 lookup.
+let detection_window = 20m;
 // Lower-case sAMAccountName of every domain controller. Keep this current.
 let domain_controllers = dynamic(["dc01$"]);
 // Lower-case sAMAccountNames that replicate by design, e.g. a directory sync service account.

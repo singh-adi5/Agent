@@ -35,9 +35,10 @@ query: |
   let excluded_requesters = dynamic([]);
   SecurityEvent
   | where EventID == 4769
-  // Kerberos fields are read from the typed column when it is populated and from the raw event XML when it is not.
+  // SecurityEvent has no column for the ticket encryption type, so it is read from the raw event XML.
+  // The other fields use the typed column when it is populated and the XML when it is not.
   | extend
-      EncType = iff(isnotempty(TicketEncryptionType), TicketEncryptionType, extract(@'TicketEncryptionType">([^<]*)<', 1, EventData)),
+      EncType = extract(@'"TicketEncryptionType">([^<]*)<', 1, EventData),
       KrbStatus = iff(isnotempty(Status), Status, extract(@'"Status">([^<]*)<', 1, EventData)),
       Service = iff(isnotempty(ServiceName), ServiceName, extract(@'"ServiceName">([^<]*)<', 1, EventData)),
       RawUser = iff(isnotempty(TargetUserName), TargetUserName, extract(@'"TargetUserName">([^<]*)<', 1, EventData)),
@@ -57,10 +58,13 @@ query: |
       EndTime = max(TimeGenerated),
       SpnCount = dcount(Service),
       Services = make_set(Service, 50),
-      TicketRequests = count()
-      by Computer, Requester, SourceIp
+      TicketRequests = count(),
+      DomainControllers = make_set(Computer, 20),
+      Computer = take_any(Computer)
+      // Grouped across domain controllers, so requests spread over several DCs still add up.
+      by Requester, SourceIp
   | where SpnCount >= spn_threshold
-  | project StartTime, EndTime, Computer, Requester, SourceIp, SpnCount, TicketRequests, Services
+  | project StartTime, EndTime, Computer, DomainControllers, Requester, SourceIp, SpnCount, TicketRequests, Services
 entityMappings:
   - entityType: Account
     fieldMappings:

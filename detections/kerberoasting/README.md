@@ -21,7 +21,8 @@ request is valid Kerberos, so there is no failure to alert on.
 The domain controller logs one 4769 per service ticket. The query keeps a request when:
 
 1. It succeeded (`Status` 0x0).
-2. The ticket was RC4 encrypted (`TicketEncryptionType` 0x17 or 0x18). Roasting
+2. The ticket was RC4 encrypted (`TicketEncryptionType` 0x17 or 0x18). `SecurityEvent`
+   has no column for this field, so the query reads it from the `EventData` XML. Roasting
    tools ask for RC4 because it cracks far faster than AES. In a domain where
    accounts support AES, a normal client gets AES tickets.
 3. The service is not a machine account (name ending `$`) and not `krbtgt`. Machine

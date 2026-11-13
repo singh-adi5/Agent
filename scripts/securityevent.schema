@@ -1,6 +1,9 @@
 # Columns of the SecurityEvent table used to analyse the queries offline.
-# One "name: type" per line. This is a subset of the real table: add a column
-# here only after confirming it exists in the Azure Monitor table reference.
+# One "name: type" per line. This is a subset of the real table. Every entry was
+# checked against the Azure Monitor Logs reference for SecurityEvent
+# (MicrosoftDocs/azure-monitor-docs, reference/tables/securityevent.md).
+# Add a column here only after confirming it is in that reference. Note that
+# TicketEncryptionType and TicketOptions are NOT columns: read them from EventData.
 TimeGenerated: datetime
 Computer: string
 EventID: int
@@ -23,8 +26,6 @@ LogonType: int
 Status: string
 SubStatus: string
 ServiceName: string
-TicketEncryptionType: string
-TicketOptions: string
 ObjectServer: string
 ObjectName: string
 ObjectType: string

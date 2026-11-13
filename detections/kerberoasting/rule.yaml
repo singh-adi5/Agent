@@ -14,7 +14,7 @@ requiredDataConnectors:
     dataTypes:
       - SecurityEvent
 queryFrequency: 1h
-queryPeriod: 1h
+queryPeriod: 65m
 triggerOperator: gt
 triggerThreshold: 0
 tactics:

@@ -1,10 +1,9 @@
-# sentinel-ad-attack-detection
+# Active Directory Attack Detection Lab
 
-> Repository: `singh-adi5/Agent`. The project name below is the detection lab's name.
-
-Detection engineering for four classic Active Directory attacks on **Microsoft
-Sentinel**. Each attack has a KQL detection, a Sentinel scheduled analytics rule in
-YAML, a MITRE ATT&CK mapping, a lab simulation guide and tuning notes.
+**Azure and Microsoft Sentinel.** Detection engineering for Kerberoasting, DCSync,
+Golden Ticket and password spraying, plus AS-REP roasting. Each attack has a KQL
+hunting query, a Sentinel analytics rule in YAML, a MITRE ATT&CK mapping, a lab
+simulation guide for Impacket and Rubeus, and tuning notes.
 
 This is an independent lab on synthetic data. The domain is `contoso.local`. There
 are no real systems, accounts or identifiers anywhere in it.
@@ -30,6 +29,13 @@ are no real systems, accounts or identifiers anywhere in it.
 - **Fired in lab** — additionally seen raising an incident on simulated activity in
   a live workspace, with a screenshot in [`docs/evidence/`](docs/evidence/).
 
+## Hunting queries
+
+Each detection also has a hunting query in [`hunting/`](hunting/README.md): the same
+attack with no threshold and no short window, for an analyst to read over days or
+weeks. They find what the rules are tuned to ignore, such as slow roasting, and they
+produce the baselines the rules' allow-lists need.
+
 No detection is marked "Fired in lab" until that evidence exists. See
 [PROGRESS.md](PROGRESS.md).
 
@@ -52,10 +58,11 @@ version in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Repository layout
 
 ```
-detections/<attack>/   query.kql, rule.yaml, README.md   (the detection content)
+detections/<attack>/   query.kql, rule.yaml, README.md   (analytics rules)
+hunting/               <attack>.kql, <attack>.yaml       (hunting queries)
 simulations/<attack>.md                                  (how to generate the telemetry)
 deployment/            yaml_to_arm.py, dcr-securityevent.json, deploy-rules.md
-docs/                  SETUP.md, ARCHITECTURE.md, DETECTIONS.md, evidence/
+docs/                  SETUP.md, ARCHITECTURE.md, STANDARDS.md, evidence/
 scripts/               validate_rules.py, kql_check.js, securityevent.schema
 tests/                 test_tooling.py, run_logic_tests.py, logic/<detection>.json
 .github/workflows/     kql-validate.yml
@@ -69,7 +76,7 @@ Stand the lab up and reproduce the detections end to end:
    controller, attacker host, Sentinel workspace, agent and collection rule.
 2. **Deploy the rules** — [deployment/deploy-rules.md](deployment/deploy-rules.md):
    convert the YAML to an ARM template and import, or create by hand.
-3. **Simulate and confirm** — the four guides in
+3. **Simulate and confirm** — the guides in
    [simulations/](simulations/): generate the telemetry, confirm the rule fires,
    screenshot the incident into [docs/evidence/](docs/evidence/).
 
@@ -115,9 +122,13 @@ second job against a Kusto engine service container
 
 ## Standards
 
+Full mapping, including what is left to the owner, in [docs/STANDARDS.md](docs/STANDARDS.md).
+
 - Detections mapped to **MITRE ATT&CK** by technique, with mitigations referenced by id.
+- Logging and alerting mapped to **OWASP Top 10 A09**, **NIST SP 800-53** (AU-2, AU-6,
+  AU-12, SI-4) and **CIS Controls v8** (8.2, 8.5, 8.11, 13.1).
 - Rule YAML follows Sentinel's `Scheduled` analytics-rule schema.
-- Supply chain per **OWASP CI/CD Security** guidance: Actions pinned to commit SHAs,
+- Pipeline checked against the **OWASP Top 10 CI/CD Security Risks**: Actions pinned to commit SHAs,
   read-only workflow token, no persisted credentials, dependencies pinned and
   installed from lockfiles with install scripts disabled.
 - Secrets hygiene and offensive-tool use covered in [SECURITY.md](SECURITY.md).

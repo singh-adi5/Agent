@@ -15,21 +15,30 @@ still needs a live Azure run.
 - [x] Detection 4 Golden Ticket: query.kql, rule.yaml, README, simulation
 - [x] deployment/: yaml_to_arm.py converter + dcr-securityevent.json + deploy-rules.md
 - [x] scripts/: validate_rules.py, kql_check.js (Kusto parser), securityevent.schema
-- [x] tests/: 22 unit tests, plus logic tests that run each query on a Kusto engine
+- [x] tests/: 25 unit tests, plus logic tests that run each query on a Kusto engine
 - [x] CI: .github/workflows/kql-validate.yml, two jobs (static checks + logic tests on a
       Kusto service container), Actions pinned to SHAs, read-only token, hash-pinned deps
 
 ### Automated checks, all passing
 
-- `python scripts/validate_rules.py` -> 4 of 4 rules PASS
-- `python -m unittest discover -s tests` -> 22 tests OK
-- `python tests/run_logic_tests.py` -> 15 of 15 logic cases pass on a real Kusto engine
-- `npm run kql-check` -> 4 of 4 queries parse and analyse clean against the SecurityEvent schema
+- `python scripts/validate_rules.py` -> 5 of 5 rules and 5 of 5 hunting queries PASS
+- `python -m unittest discover -s tests` -> 25 tests OK
+- `python tests/run_logic_tests.py` -> 20 of 20 logic cases pass on a real Kusto engine
+- `npm run kql-check` -> 10 of 10 queries parse and analyse clean against the SecurityEvent schema
 
 What the checks prove: every query is valid KQL, references only real SecurityEvent
 columns, carries its header block and false-positive filter; every rule has all
 required Sentinel fields, a correct ATT&CK id, and a query identical to its .kql
-file; the converter emits four disabled rules with no identifiers.
+file; the converter emits every rule disabled with no identifiers.
+
+## CV alignment
+
+- Added a hunting query per detection in `hunting/`, each in `.kql` and Sentinel
+  hunting YAML, validated by the parser and run on the Kusto engine against the
+  attack fixtures. 20 logic cases in total.
+- Added `docs/STANDARDS.md`: ATT&CK, OWASP Top 10 A09, OWASP Top 10 CI/CD Security
+  Risks, NIST SP 800-53, CIS Controls v8, NIST CSF 2.0, with owner actions marked.
+- README title and summary now match the project name used elsewhere.
 
 ## Review fixes (round 2)
 
@@ -70,7 +79,7 @@ attacks against it.
 
 - [ ] Stand up the lab with docs/SETUP.md.
 - [ ] Deploy the rules with deployment/deploy-rules.md and enable them.
-- [ ] Run the four simulations/ guides and confirm each rule fires.
+- [ ] Run the simulations/ guides and confirm each rule fires.
 - [ ] Capture the screenshots listed in docs/evidence/README.md and commit them.
 - [ ] Flip each row in the README results table from "Logic validated" to
       "Fired in lab" as its evidence lands.

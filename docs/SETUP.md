@@ -267,7 +267,7 @@ You should see 4624, 4768 and 4769 at minimum. If the table is empty:
 - Confirm the audit policy from step 5 with `auditpol /get /category:*`.
 
 Next: deploy the rules with [`deployment/deploy-rules.md`](../deployment/deploy-rules.md),
-then run the four guides in [`simulations/`](../simulations/).
+then run the guides in [`simulations/`](../simulations/).
 
 ## 11. Teardown
 

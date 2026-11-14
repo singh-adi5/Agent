@@ -115,6 +115,27 @@ def main() -> int:
             want = "fire" if expect_fire else "silent"
             print(f"  {'PASS' if ok else 'FAIL'} [{want:6}] {case['name']} -> {verb} ({rows} rows)")
 
+    # A hunting query has no threshold to tune out noise, so the check is one way:
+    # it must surface the same attack events its analytics rule fires on.
+    for hunt in sorted((ROOT / "hunting").glob("*.kql")):
+        fixture = LOGIC_DIR / f"{hunt.stem}.json"
+        if not fixture.is_file():
+            continue
+        query = hunt.read_text(encoding="utf-8")
+        print(f"# hunting/{hunt.stem}")
+        for case in json.loads(fixture.read_text(encoding="utf-8"))["cases"]:
+            if case["expect"] != "fire":
+                continue
+            total += 1
+            try:
+                rows = run_query(build_csl(columns, case["events"], query, now))
+            except (urllib.error.URLError, OSError) as exc:
+                print(f"  ERROR {case['name']}: cannot reach the engine ({exc})")
+                return 2
+            ok = rows > 0
+            failures += 0 if ok else 1
+            print(f"  {'PASS' if ok else 'FAIL'} [surface] {case['name']} -> {rows} rows")
+
     print(f"{total - failures} of {total} cases passed")
     return 1 if failures else 0
 

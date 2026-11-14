@@ -1,0 +1,32 @@
+// Name:        Hunt - accounts authenticating without Kerberos pre-authentication
+// Purpose:     List every account issued a TGT with pre-authentication type 0, whatever
+//              the encryption type. Each one is exposed to AS-REP roasting. The output
+//              is the list of accounts to fix.
+// Data source: SecurityEvent (Windows Security Events via AMA), EventID 4768 on domain controllers
+// ATT&CK:      T1558.004 (Steal or Forge Kerberos Tickets: AS-REP Roasting)
+// Use:         Run over 30 days. An account requested from many sources, or with RC4
+//              (0x17) among its encryption types, comes first.
+SecurityEvent
+| where EventID == 4768
+// SecurityEvent has no column for the pre-auth type or the encryption type, so both are read from the raw event XML.
+| extend
+    KrbStatus = iff(isnotempty(Status), Status, extract(@'"Status">([^<]*)<', 1, EventData)),
+    EncType = extract(@'"TicketEncryptionType">([^<]*)<', 1, EventData),
+    PreAuthType = extract(@'"PreAuthType">([^<]*)<', 1, EventData),
+    RawUser = iff(isnotempty(TargetUserName), TargetUserName, extract(@'"TargetUserName">([^<]*)<', 1, EventData)),
+    RawIp = iff(isnotempty(IpAddress), IpAddress, extract(@'"IpAddress">([^<]*)<', 1, EventData))
+| where KrbStatus =~ "0x0" and PreAuthType == "0"
+| extend
+    TargetAccount = tolower(tostring(split(RawUser, "@")[0])),
+    SourceIp = replace_string(RawIp, "::ffff:", "")
+| where isnotempty(TargetAccount) and TargetAccount !endswith "$"
+| summarize
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    TgtRequests = count(),
+    SourceCount = dcount(SourceIp),
+    Sources = make_set(SourceIp, 50),
+    EncryptionTypes = make_set(EncType, 10)
+    by TargetAccount
+| project FirstSeen, LastSeen, TargetAccount, TgtRequests, SourceCount, Sources, EncryptionTypes
+| order by SourceCount desc, TgtRequests desc

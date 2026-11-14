@@ -1,0 +1,59 @@
+id: 33e23e3d-f15b-4cb2-a086-64bcc042a6d7
+name: Hunt - service tickets from addresses with no TGT for that account
+description: |
+  Each account and source address that received Kerberos service tickets while the account has no TGT
+  issue or renewal from that address in the time range. Wider than the analytics rule and shows
+  whether the account holds a TGT elsewhere.
+requiredDataConnectors:
+  - connectorId: WindowsSecurityEvents
+    dataTypes:
+      - SecurityEvent
+  - connectorId: SecurityEvents
+    dataTypes:
+      - SecurityEvent
+tactics:
+  - CredentialAccess
+relevantTechniques:
+  - T1558.001
+query: |
+  // Name:        Hunt - service tickets from addresses with no TGT for that account
+  // Purpose:     For the whole time range, list each account and source address that
+  //              received service tickets while the account has no TGT issue or renewal
+  //              from that address. Wider than the analytics rule: no one-hour window,
+  //              and it shows whether the account has a TGT anywhere else.
+  // Data source: SecurityEvent (Windows Security Events via AMA), EventIDs 4768, 4769, 4770
+  //              from every domain controller in the domain
+  // ATT&CK:      T1558.001 (Steal or Forge Kerberos Tickets: Golden Ticket)
+  // Use:         Run over 1 to 7 days. Ignore rows whose FirstSeen is in the first
+  //              12 hours of the range: their TGT may predate it. A privileged account
+  //              with no TGT from any address comes first.
+  let kerberos_events = SecurityEvent
+      | where EventID in (4768, 4769, 4770)
+      | extend
+          KrbStatus = iff(isnotempty(Status), Status, extract(@'"Status">([^<]*)<', 1, EventData)),
+          Service = iff(isnotempty(ServiceName), ServiceName, extract(@'"ServiceName">([^<]*)<', 1, EventData)),
+          RawUser = iff(isnotempty(TargetUserName), TargetUserName, extract(@'"TargetUserName">([^<]*)<', 1, EventData)),
+          RawIp = iff(isnotempty(IpAddress), IpAddress, extract(@'"IpAddress">([^<]*)<', 1, EventData))
+      | extend
+          AccountName = tolower(tostring(split(RawUser, "@")[0])),
+          SourceIp = replace_string(RawIp, "::ffff:", "")
+      | where isnotempty(AccountName) and AccountName !endswith "$";
+  let tgt_addresses = kerberos_events
+      | where EventID == 4770 or (EventID == 4768 and KrbStatus =~ "0x0")
+      | summarize TgtAddresses = make_set(SourceIp, 100) by AccountName;
+  kerberos_events
+  | where EventID == 4769 and KrbStatus =~ "0x0" and Service !~ "krbtgt"
+  | where isnotempty(SourceIp) and SourceIp !in ("::1", "127.0.0.1")
+  | summarize
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated),
+      TicketRequests = count(),
+      Services = make_set(Service, 50)
+      by AccountName, SourceIp
+  | join kind=leftouter tgt_addresses on AccountName
+  | extend TgtAddresses = coalesce(TgtAddresses, dynamic([]))
+  | where not(set_has_element(TgtAddresses, SourceIp))
+  | extend AccountHasTgtElsewhere = array_length(TgtAddresses) > 0
+  | project FirstSeen, LastSeen, AccountName, SourceIp, AccountHasTgtElsewhere, TicketRequests, Services, TgtAddresses
+  | order by AccountHasTgtElsewhere asc, TicketRequests desc
+version: 1.0.0

@@ -40,6 +40,34 @@ class RepositoryRules(unittest.TestCase):
         self.assertEqual(validate_rules.main(["validate_rules.py", str(ROOT)]), 0)
 
 
+class HuntingQueries(unittest.TestCase):
+    def test_every_detection_has_a_hunting_query_that_passes(self):
+        for name, technique in EXPECTED.items():
+            path = ROOT / "hunting" / f"{name}.yaml"
+            with self.subTest(hunt=name):
+                self.assertEqual(validate_rules.validate_hunting_query(path), [])
+                self.assertEqual(yaml.safe_load(path.read_text())["relevantTechniques"], [technique])
+
+    def test_drift_from_the_kql_file_fails(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp)
+        for suffix in (".yaml", ".kql"):
+            shutil.copy(ROOT / "hunting" / f"dcsync{suffix}", tmp / f"dcsync{suffix}")
+        hunt = yaml.safe_load((tmp / "dcsync.yaml").read_text())
+        hunt["query"] += "\n| take 1"
+        (tmp / "dcsync.yaml").write_text(yaml.safe_dump(hunt, sort_keys=False))
+        errors = validate_rules.validate_hunting_query(tmp / "dcsync.yaml")
+        self.assertTrue(any("differs from" in e for e in errors))
+
+    def test_missing_attack_id_fails(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp)
+        hunt = yaml.safe_load((ROOT / "hunting" / "dcsync.yaml").read_text())
+        hunt["relevantTechniques"] = []
+        (tmp / "dcsync.yaml").write_text(yaml.safe_dump(hunt, sort_keys=False))
+        self.assertTrue(validate_rules.validate_hunting_query(tmp / "dcsync.yaml"))
+
+
 class OutputColumnParsing(unittest.TestCase):
     def test_unaliased_function_arguments_are_not_counted(self):
         q = "SecurityEvent\n| project Requester, Blob = pack('ip', SourceIp, 'host', Computer)"

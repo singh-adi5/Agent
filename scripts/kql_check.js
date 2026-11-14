@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Parse and analyse every detections/*/query.kql with Microsoft's Kusto language
+// Parse and analyse every detections/*/query.kql and hunting/*.kql with Microsoft's Kusto language
 // service. Fails on any syntax error or any reference to a column that is not in
 // scripts/securityevent.schema. It does not run the query against a workspace.
 "use strict";
@@ -26,6 +26,14 @@ if (files.length === 0) {
   for (const dir of fs.readdirSync(base).sort()) {
     const candidate = path.join(base, dir, "query.kql");
     if (fs.existsSync(candidate)) files.push(candidate);
+  }
+}
+if (process.argv.length === 2) {
+  const hunting = path.join(root, "hunting");
+  if (fs.existsSync(hunting)) {
+    for (const name of fs.readdirSync(hunting).sort()) {
+      if (name.endsWith(".kql")) files.push(path.join(hunting, name));
+    }
   }
 }
 if (files.length === 0) {

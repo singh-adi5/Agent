@@ -1,11 +1,12 @@
-"""Build one ARM template holding every analytics rule in detections/*/analytic.yaml.
+"""Build one ARM template with every analytics rule and every watchlist that has items.
 
     python -m tools.build_arm -o build/sentinel-analytics.json
     az deployment group create -g <RESOURCE_GROUP> \
-        --template-file build/sentinel-analytics.json --parameters workspace=<WORKSPACE_NAME>
+        --template-file build/sentinel-analytics.json \
+        --parameters workspace=<WORKSPACE_NAME> enableRules=false
 
-The template takes the workspace name as its only parameter and contains no
-subscription, tenant or workspace identifiers. Rules are created disabled.
+Parameters are the workspace name and whether rules are enabled (default false).
+The template contains no subscription, tenant or workspace identifiers.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import re
 import sys
 from pathlib import Path
 
-from tools import catalog
+from tools import catalog, watchlists
 
 API_VERSION = "2023-02-01"
 OPERATORS = {"gt": "GreaterThan", "lt": "LessThan", "eq": "Equal", "ne": "NotEqual"}
@@ -38,8 +39,10 @@ def to_resource(rule: dict) -> dict:
         "displayName": rule["name"],
         "description": " ".join(str(rule["description"]).split()),
         "severity": rule["severity"],
-        # Enable each rule after its allow-lists are set for the environment.
-        "enabled": False,
+        # Set per deployment. Keep false until the watchlists are populated for the
+        # environment, and deploy with the same value afterwards: a redeploy with false
+        # switches enabled rules off again.
+        "enabled": "[parameters('enableRules')]",
         "query": rule["query"],
         "queryFrequency": iso8601(rule["queryFrequency"]),
         "queryPeriod": iso8601(rule["queryPeriod"]),
@@ -90,10 +93,21 @@ def build_template(root: Path = catalog.REPO_ROOT) -> dict:
             "workspace": {
                 "type": "string",
                 "metadata": {"description": "Log Analytics workspace with Sentinel enabled."},
-            }
+            },
+            "enableRules": {
+                "type": "bool",
+                "defaultValue": False,
+                "metadata": {"description": "Create the analytics rules enabled."},
+            },
         },
-        "resources": [to_resource(catalog.load_yaml(p)) for p in paths],
+        "resources": watchlist_resources(root) + [to_resource(catalog.load_yaml(p)) for p in paths],
     }
+
+
+def watchlist_resources(root: Path = catalog.REPO_ROOT) -> list[dict]:
+    """Watchlists with at least one item. An empty one is left to the workspace, where
+    _GetWatchlist returns an empty table for it."""
+    return [watchlists.to_resource(w) for w in watchlists.load(root) if w.read()[1]]
 
 
 def main(argv: list[str] | None = None) -> int:

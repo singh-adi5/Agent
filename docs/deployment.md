@@ -55,14 +55,29 @@ Analytics > Import**, then select the file.
 ## Pipeline deployment
 
 The `deploy` job in [.github/workflows/ci.yml](../.github/workflows/ci.yml) runs on
-`main` after the static checks and the emulator tests pass. It builds the template,
-shows an `az deployment group what-if` preview, then deploys. It is skipped until the
-variables below are set, so the repository works without an Azure subscription.
+`main` after the static checks and the emulator tests pass. It validates its settings,
+builds the template, records an `az deployment group what-if` preview in the job log,
+then deploys. It stays off until the repository variable `SENTINEL_DEPLOY` is `true`,
+so the repository works without an Azure subscription.
 
 Authentication is OpenID Connect: GitHub issues a short-lived token for the job, and
 Microsoft Entra ID exchanges it for an Azure token. No client secret or credential is
-stored in GitHub. The job runs in a GitHub environment named `sentinel`; add required
-reviewers to it to put a manual approval in front of every deployment.
+stored in GitHub. The job runs in a GitHub environment named `sentinel`.
+
+Controls, and where each one lives:
+
+| Control | Where | Effect |
+|---|---|---|
+| Content review | Branch protection on `main` (required reviews and status checks) | Every change to a rule is reviewed before it can deploy |
+| Branch restriction | `sentinel` environment, deployment branches: `main` only | A workflow edited on another branch cannot deploy, whatever its YAML says |
+| Deployment approval | `sentinel` environment, required reviewers, prevent self-review | A second person approves each deployment |
+| Identity scope | Federated credential subject names this repository's `sentinel` environment | Tokens from any other repository or job are refused |
+| Setting validation | First step of the job | An unset or mistyped `SENTINEL_ENABLE_RULES` stops the job instead of disabling rules |
+
+The approval happens before the job starts, so reviewers approve the content change,
+not the what-if output. The what-if is an audit record. A separate plan job that
+uploads the template for an approved apply job would make the preview a gate; it is
+not implemented here.
 
 ### One-time setup
 
@@ -73,10 +88,14 @@ APP_ID=$(az ad app create --display-name sentinel-detections-deploy --query appI
 az ad sp create --id "$APP_ID"
 
 # Trust GitHub tokens issued to jobs in this repository's `sentinel` environment only.
+# Repositories created or renamed after 15 July 2026 use GitHub's immutable subject
+# format, which includes the owner and repository IDs:
+#   curl -s https://api.github.com/repos/<OWNER>/<REPOSITORY> | jq '.owner.id, .id'
+# Older repositories use repo:<OWNER>/<REPOSITORY>:environment:sentinel instead.
 az ad app federated-credential create --id "$APP_ID" --parameters '{
   "name": "github-sentinel-environment",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:<OWNER>/<REPOSITORY>:environment:sentinel",
+  "subject": "repo:<OWNER>@<OWNER_ID>/<REPOSITORY>@<REPOSITORY_ID>:environment:sentinel",
   "audiences": ["api://AzureADTokenExchange"]
 }'
 
@@ -88,10 +107,16 @@ az role assignment create --assignee "$APP_ID" \
 
 Microsoft Sentinel Contributor includes `Microsoft.SecurityInsights/*` (rules and
 watchlists) and `Microsoft.Resources/deployments/*` (ARM deployments and what-if), so no
-broader role is needed.
+broader built-in role is needed. It is still broad: it can change any Sentinel content
+and read the workspace. A custom role limited to analytics rules, watchlists and
+deployments in one workspace narrows it further.
 
-In GitHub, **Settings > Environments > New environment**, name it `sentinel`, add
-required reviewers, and add these environment variables:
+In GitHub, **Settings > Environments > New environment**, name it `sentinel`, then:
+
+1. Under **Deployment branches and tags**, choose **Selected branches and tags** and add
+   `main`.
+2. Add required reviewers and turn on **Prevent self-review**.
+3. Add these environment variables:
 
 | Variable | Value |
 |---|---|
@@ -100,10 +125,16 @@ required reviewers, and add these environment variables:
 | `AZURE_SUBSCRIPTION_ID` | `az account show --query id -o tsv` |
 | `SENTINEL_RESOURCE_GROUP` | resource group of the workspace |
 | `SENTINEL_WORKSPACE` | workspace name |
-| `SENTINEL_ENABLE_RULES` | `false` until the watchlists are populated, then `true` |
+| `SENTINEL_ENABLE_RULES` | exactly `false` until the watchlists are populated, then exactly `true` |
+
+Finally, in **Settings > Secrets and variables > Actions > Variables**, add the
+repository variable `SENTINEL_DEPLOY` with the value `true`. It has to be a repository
+variable: environment variables are not available when GitHub decides whether to run
+the job.
 
 These are identifiers, not credentials, but they stay in GitHub settings, not in the
-repository. If the repository is renamed, update the federated credential's `subject`.
+repository. A repository rename changes the name in the subject; update the federated
+credential to match. The IDs do not change.
 
 ## Schedules
 

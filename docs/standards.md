@@ -48,16 +48,16 @@ up, and the pipeline that validates the content.
 
 | Risk | Status | How |
 |---|---|---|
-| CICD-SEC-1 Insufficient Flow Control | Partly | Deployment runs only on `main` and only after the static checks and emulator tests pass. Owner: branch protection with required status checks on `main`, and required reviewers on the `sentinel` environment |
+| CICD-SEC-1 Insufficient Flow Control | Partly | The deploy job needs the static checks and emulator tests to pass, and its YAML limits it to `main`. Owner: branch protection on `main`, the `sentinel` environment restricted to `main` (the YAML check alone can be edited on a branch), required reviewers with prevent self-review |
 | CICD-SEC-2 Inadequate Identity and Access Management | Partly | The deploy identity is a dedicated app registration whose federated credential accepts only this repository's `sentinel` environment, with Microsoft Sentinel Contributor on one resource group. Owner: 2FA and minimal collaborators |
 | CICD-SEC-3 Dependency Chain Abuse | Addressed | Exact versions. Python installs with `--require-hashes`; npm installs from the lockfile with integrity hashes. Dependabot raises updates for actions, pip and npm |
-| CICD-SEC-4 Poisoned Pipeline Execution | Addressed | The workflow uses `pull_request`, not `pull_request_target`, holds no secrets, and npm install scripts are disabled |
+| CICD-SEC-4 Poisoned Pipeline Execution | Partly | The workflow uses `pull_request`, not `pull_request_target`, holds no secrets, and npm install scripts are disabled; fork pull requests cannot obtain an OIDC token. A contributor with write access could still edit the workflow on a branch; the environment's branch restriction (owner setting) is what stops that branch deploying |
 | CICD-SEC-5 Insufficient Pipeline-Based Access Controls | Addressed | Workflow token is `contents: read`. Only the deploy job adds `id-token: write`. Checkout does not persist credentials |
 | CICD-SEC-6 Insufficient Credential Hygiene | Addressed | No secrets in the repository or the workflow. Azure access uses OpenID Connect, so there is no client secret to store or rotate. `.gitignore` blocks key and ticket files |
-| CICD-SEC-7 Insecure System Configuration | Partly | GitHub-hosted runners on a fixed image version. Nothing self-hosted |
+| CICD-SEC-7 Insecure System Configuration | Partly | GitHub-hosted `ubuntu-24.04` runners, which GitHub patches weekly. Nothing self-hosted |
 | CICD-SEC-8 Ungoverned Usage of Third-Party Services | Addressed | Three GitHub actions and one Azure action, all first-party, and one Microsoft container image. No third-party apps |
-| CICD-SEC-9 Improper Artifact Integrity Validation | Addressed | Actions pinned to commit SHAs. The Kusto engine image is pinned by digest |
-| CICD-SEC-10 Insufficient Logging and Visibility | Partly | Workflow run logs, a what-if preview before every deployment, and the Azure activity log for the deployment itself |
+| CICD-SEC-9 Improper Artifact Integrity Validation | Addressed | Actions pinned to commit SHAs. The Kusto engine image is pinned by digest. Content is escaped before it enters the ARM template, so text in a rule cannot become a template expression |
+| CICD-SEC-10 Insufficient Logging and Visibility | Partly | Workflow run logs, a what-if record in each deployment's log, and the Azure activity log for the deployment itself. The what-if is a record, not an approval gate |
 
 ## NIST SP 800-53 Rev. 5
 

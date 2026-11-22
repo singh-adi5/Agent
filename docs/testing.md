@@ -55,6 +55,8 @@ stand-in for Sentinel's `_GetWatchlist()` function serving the watchlist items, 
 runs the query unchanged on the
 [Kusto emulator](https://learn.microsoft.com/azure/data-explorer/kusto-emulator-overview)
 over its REST endpoint. CI runs the emulator as a service container pinned by digest.
+Dependabot does not update image digests in workflow `services:` or the Makefile, so
+the digest is updated by hand in both places.
 
 ## Adding a detection
 

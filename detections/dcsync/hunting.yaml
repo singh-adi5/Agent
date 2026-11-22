@@ -1,9 +1,10 @@
 id: e36769f7-9b48-4205-abb5-136d1a8d7e01
-name: Hunt - every account using directory replication rights
+name: Accounts using directory replication rights
 description: |
-  Every account that exercised a directory replication right, domain controllers included. Use it to
-  baseline who replicates, to fill the analytics rule allow-lists, and to find accounts that should
-  not hold the right.
+  Lists every account that used a directory replication right, domain controllers included. Use it
+  to baseline legitimate replication, to populate the analytic rule's allow-lists, and to find
+  accounts that should not hold the right. Run over 30 days. Every account that is not a domain
+  controller computer account needs a documented owner.
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
     dataTypes:
@@ -16,15 +17,6 @@ tactics:
 relevantTechniques:
   - T1003.006
 query: |
-  // Name:        Hunt - every account using directory replication rights
-  // Purpose:     List every account that exercised a replication right, domain
-  //              controllers included. Gives the baseline needed to fill the analytics
-  //              rule's domain controller and approved account lists, and shows any
-  //              account that should not be there.
-  // Data source: SecurityEvent (Windows Security Events via AMA), EventID 4662 on domain controllers
-  // ATT&CK:      T1003.006 (OS Credential Dumping: DCSync)
-  // Use:         Run over 30 days. Every row that is not a domain controller computer
-  //              account needs an owner and a reason.
   let get_changes = "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2";
   let get_changes_all = "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2";
   let get_changes_filtered = "89e95b76-444d-4c62-991a-0facbeda640c";

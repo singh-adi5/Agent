@@ -1,10 +1,10 @@
 id: ace5927f-835b-4613-be5f-c9d80fdc530f
 name: Password spraying - one source failing logons across many accounts
 description: |
-  A single source address failed authentication against ten or more distinct accounts within thirty
-  minutes, averaging five or fewer attempts per account. Uses Kerberos pre-authentication failures
-  (EventID 4771, status 0x18) and failed logons (EventID 4625, bad password or unknown user). This is
-  the shape of Kerbrute passwordspray and SMB or NTLM spraying. MITRE ATT&CK T1110.003.
+  Detects one source address failing authentication against ten or more distinct accounts within
+  30 minutes, with no more than five attempts per account. Combines Kerberos pre-authentication
+  failures (4771, status 0x18) with NTLM and interactive failures (4625, bad password or unknown
+  user), so Kerberos and SMB/LDAP spraying are both covered.
 severity: Medium
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
@@ -22,16 +22,6 @@ tactics:
 relevantTechniques:
   - T1110.003
 query: |
-  // Name:        Password spraying - one source failing logons across many accounts
-  // Purpose:     Find a single source address that fails authentication against many
-  //              different accounts with few attempts per account, the shape of
-  //              Kerbrute passwordspray and SMB/NTLM spraying tools.
-  // Data source: SecurityEvent (Windows Security Events via AMA), EventID 4771 (Kerberos
-  //              pre-authentication failed, status 0x18) and EventID 4625 (failed logon,
-  //              bad password or unknown user)
-  // ATT&CK:      T1110.003 (Brute Force: Password Spraying)
-  // Fires when:  one source address fails against 10 or more distinct accounts inside
-  //              the query period, averaging 5 or fewer attempts per account.
   let account_threshold = 10;
   let max_attempts_per_account = 5;
   // Addresses that legitimately authenticate many users, e.g. a VPN concentrator or web proxy.
@@ -78,6 +68,8 @@ entityMappings:
 customDetails:
   TargetedAccounts: TargetedAccounts
   FailedAttempts: FailedAttempts
+alertDetailsOverride:
+  alertDisplayNameFormat: "Password spray from {{SourceIp}} against {{TargetedAccounts}} accounts"
 eventGroupingSettings:
   aggregationKind: AlertPerResult
 version: 1.0.0

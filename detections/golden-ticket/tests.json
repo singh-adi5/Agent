@@ -1,0 +1,19 @@
+{
+  "cases": [
+    {
+      "name": "service ticket used with no preceding TGT request",
+      "expect": "fire",
+      "events": [
+        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "cifs/dc01", "TargetUserName": "labadmin@CONTOSO.LOCAL", "IpAddress": "10.10.1.10"}
+      ]
+    },
+    {
+      "name": "service ticket from an address that also has a real TGT",
+      "expect": "silent",
+      "events": [
+        {"age_minutes": 30, "EventID": 4768, "Status": "0x0", "TargetUserName": "alice.lab", "IpAddress": "10.10.1.20"},
+        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "cifs/dc01", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.20"}
+      ]
+    }
+  ]
+}

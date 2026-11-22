@@ -1,9 +1,11 @@
 id: 33e23e3d-f15b-4cb2-a086-64bcc042a6d7
-name: Hunt - service tickets from addresses with no TGT for that account
+name: Service tickets with no TGT from the same address
 description: |
-  Each account and source address that received Kerberos service tickets while the account has no TGT
-  issue or renewal from that address in the time range. Wider than the analytics rule and shows
-  whether the account holds a TGT elsewhere.
+  Lists account and source address pairs that received service tickets while the account has no
+  TGT issued or renewed from that address in the time range, and whether the account holds a TGT
+  from any other address. Run over 1 to 7 days and disregard results in the first 12 hours of the
+  range, whose TGTs may predate it. Privileged accounts with no TGT from any address are the
+  priority.
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
     dataTypes:
@@ -16,17 +18,6 @@ tactics:
 relevantTechniques:
   - T1558.001
 query: |
-  // Name:        Hunt - service tickets from addresses with no TGT for that account
-  // Purpose:     For the whole time range, list each account and source address that
-  //              received service tickets while the account has no TGT issue or renewal
-  //              from that address. Wider than the analytics rule: no one-hour window,
-  //              and it shows whether the account has a TGT anywhere else.
-  // Data source: SecurityEvent (Windows Security Events via AMA), EventIDs 4768, 4769, 4770
-  //              from every domain controller in the domain
-  // ATT&CK:      T1558.001 (Steal or Forge Kerberos Tickets: Golden Ticket)
-  // Use:         Run over 1 to 7 days. Ignore rows whose FirstSeen is in the first
-  //              12 hours of the range: their TGT may predate it. A privileged account
-  //              with no TGT from any address comes first.
   let kerberos_events = SecurityEvent
       | where EventID in (4768, 4769, 4770)
       | extend

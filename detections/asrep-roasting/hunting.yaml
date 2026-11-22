@@ -1,8 +1,10 @@
 id: 324110b0-b0b0-4dc1-8294-b25394621e4a
-name: Hunt - accounts authenticating without Kerberos pre-authentication
+name: Accounts authenticating without Kerberos pre-authentication
 description: |
-  Every account issued a Kerberos TGT with pre-authentication type 0, whatever the encryption type.
-  Each one is exposed to AS-REP roasting. Use the output as the list of accounts to fix.
+  Lists every account issued a TGT without Kerberos pre-authentication (PreAuthType 0), any
+  encryption type. Each result is exposed to AS-REP roasting and should have pre-authentication
+  re-enabled. Run over 30 days. Accounts requested from several sources, or with RC4 (0x17) among
+  their encryption types, are the priority.
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
     dataTypes:
@@ -15,14 +17,6 @@ tactics:
 relevantTechniques:
   - T1558.004
 query: |
-  // Name:        Hunt - accounts authenticating without Kerberos pre-authentication
-  // Purpose:     List every account issued a TGT with pre-authentication type 0, whatever
-  //              the encryption type. Each one is exposed to AS-REP roasting. The output
-  //              is the list of accounts to fix.
-  // Data source: SecurityEvent (Windows Security Events via AMA), EventID 4768 on domain controllers
-  // ATT&CK:      T1558.004 (Steal or Forge Kerberos Tickets: AS-REP Roasting)
-  // Use:         Run over 30 days. An account requested from many sources, or with RC4
-  //              (0x17) among its encryption types, comes first.
   SecurityEvent
   | where EventID == 4768
   // SecurityEvent has no column for the pre-auth type or the encryption type, so both are read from the raw event XML.

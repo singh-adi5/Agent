@@ -1,0 +1,25 @@
+{
+  "cases": [
+    {
+      "name": "RC4 TGT issued with no pre-authentication",
+      "expect": "fire",
+      "events": [
+        {"age_minutes": 5, "EventID": 4768, "Status": "0x0", "TargetUserName": "svc-legacy@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "Computer": "dc01.contoso.local", "EventData": "<Data Name=\"PreAuthType\">0</Data><Data Name=\"TicketEncryptionType\">0x17</Data>"}
+      ]
+    },
+    {
+      "name": "normal TGT with pre-authentication is not roasting",
+      "expect": "silent",
+      "events": [
+        {"age_minutes": 5, "EventID": 4768, "Status": "0x0", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.20", "Computer": "dc01.contoso.local", "EventData": "<Data Name=\"PreAuthType\">2</Data><Data Name=\"TicketEncryptionType\">0x12</Data>"}
+      ]
+    },
+    {
+      "name": "no pre-auth but AES, not the crackable RC4 pattern",
+      "expect": "silent",
+      "events": [
+        {"age_minutes": 5, "EventID": 4768, "Status": "0x0", "TargetUserName": "svc-legacy@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "Computer": "dc01.contoso.local", "EventData": "<Data Name=\"PreAuthType\">0</Data><Data Name=\"TicketEncryptionType\">0x12</Data>"}
+      ]
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 id: 42aa9056-f3d6-4f90-a1a3-5574cf41da8f
 name: Kerberoasting - RC4 service tickets requested for multiple SPNs
 description: |
-  One account requested RC4-encrypted Kerberos service tickets (EventID 4769, encryption type 0x17 or
-  0x18) for three or more distinct user-backed SPNs from a single source address within an hour. This
-  is the pattern left by Rubeus kerberoast and Impacket GetUserSPNs.py. Machine accounts and krbtgt
-  are excluded. MITRE ATT&CK T1558.003.
+  Detects one account requesting RC4-encrypted service tickets (4769, encryption type 0x17 or
+  0x18) for three or more user-backed SPNs within the query window. This is the request pattern of
+  Kerberoasting tools such as Rubeus and Impacket GetUserSPNs. Machine accounts, krbtgt and
+  self-requests are excluded.
 severity: Medium
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
@@ -22,14 +22,6 @@ tactics:
 relevantTechniques:
   - T1558.003
 query: |
-  // Name:        Kerberoasting - RC4 service tickets requested for multiple SPNs
-  // Purpose:     Find one account pulling RC4-encrypted service tickets for several
-  //              user-backed SPNs in a short window, the pattern left by Rubeus
-  //              kerberoast and Impacket GetUserSPNs.py.
-  // Data source: SecurityEvent (Windows Security Events via AMA), EventID 4769 on domain controllers
-  // ATT&CK:      T1558.003 (Steal or Forge Kerberos Tickets: Kerberoasting)
-  // Fires when:  an account gets RC4 (0x17 / 0x18) tickets for 3 or more distinct
-  //              non-machine SPNs from one source address inside the query period.
   let spn_threshold = 3;
   // Lower-case sAMAccountNames allowed to do this, e.g. an approved vulnerability scanner.
   let excluded_requesters = dynamic([]);
@@ -81,6 +73,8 @@ entityMappings:
 customDetails:
   SpnCount: SpnCount
   TicketRequests: TicketRequests
+alertDetailsOverride:
+  alertDisplayNameFormat: "Kerberoasting: {{Requester}} requested RC4 tickets for {{SpnCount}} SPNs"
 eventGroupingSettings:
   aggregationKind: AlertPerResult
 version: 1.0.0

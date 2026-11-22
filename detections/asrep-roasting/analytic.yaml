@@ -1,10 +1,10 @@
 id: db2777f7-20b9-4b7b-9713-3851a4368042
-name: AS-REP roasting - RC4 TGT issued to an account that needs no pre-authentication
+name: AS-REP roasting - RC4 TGT issued without pre-authentication
 description: |
-  One source address was issued RC4-encrypted Kerberos TGTs (EventID 4768, encryption type 0x17 or
-  0x18) with pre-authentication type 0 for one or more accounts. Accounts set to not require Kerberos
-  pre-authentication return a crackable AS-REP, the pattern left by Rubeus asreproast and Impacket
-  GetNPUsers.py. Machine accounts are excluded. MITRE ATT&CK T1558.004.
+  Detects TGTs issued without Kerberos pre-authentication (4768, PreAuthType 0) using RC4
+  encryption. An account with pre-authentication disabled returns an AS-REP that can be cracked
+  offline. This is the pattern of Rubeus asreproast and Impacket GetNPUsers. Machine accounts are
+  excluded.
 severity: Medium
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
@@ -22,14 +22,6 @@ tactics:
 relevantTechniques:
   - T1558.004
 query: |
-  // Name:        AS-REP roasting - RC4 TGT issued to an account that needs no pre-authentication
-  // Purpose:     Find accounts set to "do not require Kerberos pre-authentication" being
-  //              issued RC4-encrypted TGTs, the pattern left by Rubeus asreproast and
-  //              Impacket GetNPUsers.py. The AS-REP is crackable offline.
-  // Data source: SecurityEvent (Windows Security Events via AMA), EventID 4768 on domain controllers
-  // ATT&CK:      T1558.004 (Steal or Forge Kerberos Tickets: AS-REP Roasting)
-  // Fires when:  one source address is issued RC4 (0x17 / 0x18) TGTs with pre-auth type 0
-  //              for one or more accounts inside the query period.
   let account_threshold = 1;
   // Lower-case sAMAccountNames legitimately set to not require pre-authentication.
   let excluded_targets = dynamic([]);
@@ -76,6 +68,8 @@ entityMappings:
 customDetails:
   AccountsTargeted: AccountsTargeted
   TgtRequests: TgtRequests
+alertDetailsOverride:
+  alertDisplayNameFormat: "AS-REP roasting from {{SourceIp}} against {{AccountsTargeted}} account(s)"
 eventGroupingSettings:
   aggregationKind: AlertPerResult
 version: 1.0.0

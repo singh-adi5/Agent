@@ -1,11 +1,10 @@
 id: 942759af-7a79-4237-9294-c6d7f4ae8c8c
-name: Golden Ticket - service ticket issued with no matching TGT request
+name: Golden Ticket - service ticket use with no TGT on record
 description: |
-  A user account was granted a Kerberos service ticket (EventID 4769) from a source address where it
-  has no TGT issue (EventID 4768) or renewal (EventID 4770) in the previous twelve hours. A forged TGT
-  is never requested from the KDC, so this gap is the trace left by Mimikatz kerberos::golden, Rubeus
-  golden and Impacket ticketer.py. Needs Kerberos events from every domain controller. MITRE ATT&CK
-  T1558.001.
+  Detects Kerberos service ticket requests (4769) for a user account from a source address that
+  has no TGT issued (4768) or renewed (4770) for that account in the previous 12 hours. A forged
+  TGT is never issued by the KDC, so its use appears as service tickets with no preceding AS
+  exchange. Requires 4768, 4769 and 4770 from every domain controller.
 severity: Medium
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
@@ -23,17 +22,6 @@ tactics:
 relevantTechniques:
   - T1558.001
 query: |
-  // Name:        Golden Ticket - service ticket issued with no matching TGT request
-  // Purpose:     A forged TGT is never requested from the KDC, so the domain controller
-  //              logs service ticket requests (4769) for an account and source address
-  //              that have no TGT issue (4768) or renewal (4770) on record. This finds
-  //              that gap, the trace left by Mimikatz kerberos::golden, Rubeus golden
-  //              and Impacket ticketer.py.
-  // Data source: SecurityEvent (Windows Security Events via AMA), EventIDs 4768, 4769, 4770
-  //              from every domain controller in the domain
-  // ATT&CK:      T1558.001 (Steal or Forge Kerberos Tickets: Golden Ticket)
-  // Fires when:  a user account is granted a service ticket in the last hour from an
-  //              address where it has no TGT issue or renewal in the lookback period.
   // Longer than the default 10 hour TGT lifetime. Raise it if the domain policy is longer.
   let tgt_lookback = 12h;
   // queryFrequency (1h) plus the 5 minute delay Sentinel applies to every scheduled run.
@@ -90,6 +78,8 @@ entityMappings:
         columnName: Computer
 customDetails:
   TicketRequests: TicketRequests
+alertDetailsOverride:
+  alertDisplayNameFormat: "Service tickets for {{AccountName}} from {{SourceIp}} with no TGT on record"
 eventGroupingSettings:
   aggregationKind: AlertPerResult
 version: 1.0.0

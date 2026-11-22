@@ -1,9 +1,10 @@
 id: 671c78be-759d-42f6-95b7-4860e7bed93f
-name: Hunt - failed logon sources, with accounts that later succeeded
+name: Authentication failure sources and subsequent successful logons
 description: |
-  Every source address that failed authentication against three or more accounts, ranked, with the
-  accounts that also logged on successfully from the same address. Use it to find slow sprays under
-  the analytics rule and sprays that succeeded.
+  Ranks source addresses by the number of accounts they failed to authenticate against, from a
+  floor of three, and lists accounts that also authenticated successfully from the same address.
+  Finds slow sprays below the analytic rule's threshold and sprays that succeeded. Run over 1 to 7
+  days. Any source with entries in SucceededAfterFailing is the priority.
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
     dataTypes:
@@ -16,16 +17,6 @@ tactics:
 relevantTechniques:
   - T1110.003
 query: |
-  // Name:        Hunt - failed logon sources, with accounts that later succeeded
-  // Purpose:     Rank every source address by how many accounts it failed against, with
-  //              a low floor, and show which of those accounts also logged on
-  //              successfully from the same address. Shows slow sprays under the
-  //              analytics rule, and the spray that worked.
-  // Data source: SecurityEvent (Windows Security Events via AMA), EventIDs 4771 and 4625
-  //              for failures, 4768 and 4624 for successes
-  // ATT&CK:      T1110.003 (Brute Force: Password Spraying)
-  // Use:         Run over 1 to 7 days. A source with many targeted accounts and any
-  //              entry in SucceededAfterFailing comes first.
   let min_accounts = 3;
   let kerberos_failures = SecurityEvent
       | where EventID == 4771

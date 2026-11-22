@@ -1,10 +1,11 @@
 id: 74208ca8-4182-40fc-aa22-19b012d3342c
-name: DCSync - directory replication requested by a non-domain-controller account
+name: DCSync - directory replication by a non-domain-controller account
 description: |
-  An account that is not a listed domain controller or approved replication account exercised a
-  DS-Replication-Get-Changes extended right (EventID 4662). This is the trace left by Impacket
-  secretsdump.py and Mimikatz lsadump::dcsync. The source address comes from the matching network
-  logon (EventID 4624) when it is available. MITRE ATT&CK T1003.006.
+  Detects use of the directory replication extended rights (DS-Replication-Get-Changes,
+  Get-Changes-All, Get-Changes-In-Filtered-Set) by an account that is not a listed domain
+  controller or approved replication account (4662). This is the access pattern of Mimikatz
+  lsadump::dcsync and Impacket secretsdump. The source address is taken from the matching network
+  logon (4624) where one is available.
 severity: High
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
@@ -22,15 +23,6 @@ tactics:
 relevantTechniques:
   - T1003.006
 query: |
-  // Name:        DCSync - directory replication requested by a non-domain-controller account
-  // Purpose:     Find accounts that are not domain controllers using the directory
-  //              replication extended rights, the trace left by Impacket
-  //              secretsdump.py and Mimikatz lsadump::dcsync.
-  // Data source: SecurityEvent (Windows Security Events via AMA), EventID 4662 on domain controllers,
-  //              joined to EventID 4624 for the source address
-  // ATT&CK:      T1003.006 (OS Credential Dumping: DCSync)
-  // Fires when:  any account outside the domain controller and approved replication
-  //              lists exercises a DS-Replication-Get-Changes* right.
   // queryFrequency (15m) plus the 5 minute delay Sentinel applies to every scheduled run.
   // Without the extra 5 minutes each run would skip a slice of events.
   // The longer queryPeriod only feeds the 4624 lookup.
@@ -81,6 +73,8 @@ entityMappings:
         columnName: Computer
 customDetails:
   Operations: Operations
+alertDetailsOverride:
+  alertDisplayNameFormat: "Directory replication by non-DC account {{Actor}}"
 eventGroupingSettings:
   aggregationKind: AlertPerResult
 version: 1.0.0

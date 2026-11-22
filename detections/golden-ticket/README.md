@@ -28,8 +28,10 @@ no TGT issued to that account and address beforehand.
 ## Detection logic
 
 1. Collect successful 4768 (TGT issued) and 4770 (TGT renewed) over 12 hours. This is
-   every account and address pair holding a legitimate TGT. The default TGT lifetime
-   is 10 hours.
+   every account and address pair holding a legitimate TGT: a TGT is valid for the
+   domain's maximum ticket lifetime (10 hours by default), and although renewal can
+   extend its use for up to 7 days, every renewal logs 4770. A TGT in use was therefore
+   issued or renewed within one lifetime.
 2. Collect successful 4769 over the last 65 minutes, excluding the `krbtgt` service and
    computer accounts. The extra five minutes cover the scheduled run delay.
 3. Keep service ticket requests whose account and address have no TGT on record.
@@ -47,9 +49,10 @@ Medium. Raise it to High once it is quiet in the environment.
   makes every later service ticket look forged. Collect 4768 to 4770 from every DC
   before enabling the rule.
 - **Address changes.** A laptop moving from Wi-Fi to VPN keeps its TGT but arrives
-  from a new address. Add roaming accounts to `excluded_accounts`.
-- **TGT lifetime over 10 hours.** Raise `tgt_lookback` and keep `queryPeriod` at least
-  as long.
+  from a new address. Add roaming accounts as an [`ADDetectionExclusions`](../../watchlists/ADDetectionExclusions.csv) row (`Detection` = `golden-ticket`).
+- **Maximum ticket lifetime over 10 hours.** Raise `tgt_lookback` above the domain's
+  setting and keep `queryPeriod` at least as long. The 7-day renewal limit does not
+  need covering, because renewals log 4770.
 - **Ingestion gaps.** A dropped 4768 produces a false positive. Check agent health
   before acting on an alert.
 

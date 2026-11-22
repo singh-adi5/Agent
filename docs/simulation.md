@@ -23,8 +23,10 @@ command lines.
 | 1 | [Kerberoasting](../detections/kerberoasting/README.md#validation) | T1558.003 | As `alice.lab` |
 | 2 | [AS-REP roasting](../detections/asrep-roasting/README.md#validation) | T1558.004 | Disables pre-authentication on `svc-legacy` for the test |
 | 3 | [Password spraying](../detections/password-spraying/README.md#validation) | T1110.003 | No credentials needed |
-| 4 | [DCSync](../detections/dcsync/README.md#validation) | T1003.006 | Produces the `krbtgt` key used in step 5 |
-| 5 | [Golden Ticket](../detections/golden-ticket/README.md#validation) | T1558.001 | Leaves the lab compromised |
+| 4 | [AdminSDHolder](../detections/adminsdholder/README.md#validation) | T1098 | Administrative change; revert afterwards |
+| 5 | [DCShadow](../detections/dcshadow/README.md#validation) | T1207 | Needs a second domain-joined Windows host |
+| 6 | [DCSync](../detections/dcsync/README.md#validation) | T1003.006 | Produces the `krbtgt` key used in step 7 |
+| 7 | [Golden Ticket](../detections/golden-ticket/README.md#validation) | T1558.001 | Leaves the lab compromised |
 
 ## Conventions
 

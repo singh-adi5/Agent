@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0 - 2026-11-22
+
+- Added DCShadow (T1207) and AdminSDHolder (T1098) detections, with hunting queries and
+  tests. Collection now includes events 4742 and 5136.
+- Moved domain controller lists and exclusions out of query text into the
+  `ADDomainControllers` and `ADDetectionExclusions` watchlists. Exclusions carry an
+  owner, a reason and an expiry date.
+- DCSync reports the address of the most recent logon for the session, instead of an
+  arbitrary one.
+- Test cases can assert the values a rule reports and add watchlist items per case.
+  46 cases in total.
+- Rule enablement is an ARM template parameter. Added a deploy job that runs after the
+  CI checks on `main`, authenticates with OpenID Connect, previews with what-if, and is
+  skipped until Azure variables are configured.
+- Added engineering notes.
+
 ## 1.0.0 - 2026-11-22
 
 First complete release.

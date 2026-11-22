@@ -29,7 +29,8 @@ and hash files and local copies of deployment files.
 
 - GitHub Actions are pinned to commit SHAs; the Kusto emulator image to a digest.
 - Workflows run with a read-only token, hold no secrets and do not persist checkout
-  credentials.
+  credentials. The deploy job alone may request an OpenID Connect token, exchanged for
+  short-lived Azure access scoped to one resource group.
 - Python dependencies install with `--require-hashes`. npm installs from the lockfile
   with install scripts disabled.
 - Dependabot raises updates for actions, pip and npm.

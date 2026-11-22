@@ -39,8 +39,8 @@ address folds both into one incident.
 
 - **Shared egress addresses** such as VPN concentrators, reverse proxies, RDP
   gateways and terminal servers put many users behind one address and can look like
-  a spray after a password expiry wave. Add them to `excluded_sources`, or raise the
-  threshold for them.
+  a spray after a password expiry wave. Add each address as an [`ADDetectionExclusions`](../../watchlists/ADDetectionExclusions.csv) row
+  (`Detection` = `password-spraying`).
 - **`account_threshold`** defaults to 10. Size it to the estate and to how much NAT
   sits in front of the DCs.
 - **`max_attempts_per_account`** defaults to 5. Raise it if sprays with several

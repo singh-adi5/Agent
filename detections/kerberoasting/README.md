@@ -38,8 +38,9 @@ to scheduled runs, so a burst split across a run boundary is still counted whole
 - **RC4-only legacy services.** A user of three such services in an hour matches. Fix
   the cause by setting `msDS-SupportedEncryptionTypes` to AES on those accounts, and
   raise `spn_threshold` until that is done.
-- **Scanners and AD assessment tools** that request tickets by design. Add their
-  accounts to `excluded_requesters`.
+- **Scanners and AD assessment tools** that request tickets by design. Add each as
+  an [`ADDetectionExclusions`](../../watchlists/ADDetectionExclusions.csv) row (`Detection` = `kerberoasting`), with an `ExpiresOn` date for a one-off
+  assessment.
 - **`spn_threshold`** defaults to 3. In a domain with no RC4-only services it can drop
   to 1, which alerts on any RC4 ticket for a user-backed SPN.
 

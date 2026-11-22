@@ -26,10 +26,12 @@ right's GUID in `Properties`:
 | DS-Replication-Get-Changes-All | `1131f6ad-9c07-11d1-f79f-00c04fc2dcd2` |
 | DS-Replication-Get-Changes-In-Filtered-Set | `89e95b76-444d-4c62-991a-0facbeda640c` |
 
-The rule alerts on any 4662 carrying one of these GUIDs whose subject is not in
-`domain_controllers` or `approved_replication_accounts`. 4662 has no network address,
-so the rule joins on logon ID to the 4624 network logon on the same DC to recover it.
-If no logon is found the alert still fires with `SourceIp` empty.
+The rule alerts on any 4662 carrying one of these GUIDs whose subject is not in the
+[`ADDomainControllers`](../../watchlists/ADDomainControllers.csv) watchlist or excluded
+for `dcsync` in `ADDetectionExclusions`. 4662 has no network address, so the rule joins
+on logon ID to the 4624 network logon on the same DC to recover it, keeping the most
+recent logon if an ID repeats. If no logon is found the alert still fires with
+`SourceIp` empty.
 
 The detection window is 20 minutes on a 15 minute schedule. The extra five minutes
 cover the scheduled run delay. The one hour query period only feeds the 4624 lookup.
@@ -42,10 +44,9 @@ closes that gap.
 ## Tuning
 
 - **Directory synchronisation.** Microsoft Entra Connect replicates by design through
-  an account usually named `MSOL_` followed by a hex string. Add it to
-  `approved_replication_accounts` in lower case. It should only ever originate from
-  the sync server.
-- **New domain controllers** alert until they are added to `domain_controllers`. Make
+  an account usually named `MSOL_` followed by a hex string. Add an [`ADDetectionExclusions`](../../watchlists/ADDetectionExclusions.csv) row
+  (`Detection` = `dcsync`). It should only ever originate from the sync server.
+- **New domain controllers** alert until they are added to `ADDomainControllers`. Make
   that part of the DC build procedure.
 - **Other products that replicate**, such as password filters, identity governance
   tools and AD backup agents. Confirm with the owner, then add the account.

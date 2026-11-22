@@ -7,13 +7,23 @@ the person running it. A row that says "owner" is not done by the repository.
 
 Every analytics rule and hunting query carries a technique id. CI fails without one.
 
-| Detection | Tactic | Technique |
-|---|---|---|
-| Kerberoasting | Credential Access | [T1558.003](https://attack.mitre.org/techniques/T1558/003/) |
-| AS-REP roasting | Credential Access | [T1558.004](https://attack.mitre.org/techniques/T1558/004/) |
-| Golden Ticket | Credential Access | [T1558.001](https://attack.mitre.org/techniques/T1558/001/) |
-| DCSync | Credential Access | [T1003.006](https://attack.mitre.org/techniques/T1003/006/) |
-| Password spraying | Credential Access | [T1110.003](https://attack.mitre.org/techniques/T1110/003/) |
+| Detection | ATT&CK tactic | Sentinel tactic | Technique |
+|---|---|---|---|
+| Kerberoasting | Credential Access | CredentialAccess | [T1558.003](https://attack.mitre.org/techniques/T1558/003/) |
+| AS-REP roasting | Credential Access | CredentialAccess | [T1558.004](https://attack.mitre.org/techniques/T1558/004/) |
+| Golden Ticket | Credential Access | CredentialAccess | [T1558.001](https://attack.mitre.org/techniques/T1558/001/) |
+| DCSync | Credential Access | CredentialAccess | [T1003.006](https://attack.mitre.org/techniques/T1003/006/) |
+| Password spraying | Credential Access | CredentialAccess | [T1110.003](https://attack.mitre.org/techniques/T1110/003/) |
+| DCShadow | Defense Impairment | DefenseEvasion | [T1207](https://attack.mitre.org/techniques/T1207/) |
+| AdminSDHolder | Persistence, Privilege Escalation | Persistence, PrivilegeEscalation | [T1098](https://attack.mitre.org/techniques/T1098/) |
+
+Tactics were checked against the current ATT&CK dataset (mitre/cti). Two need a note:
+
+- ATT&CK has replaced Defense Evasion with Defense Impairment and Stealth, and lists
+  T1207 under Defense Impairment. Sentinel's API (checked at 2023-02-01 and 2025-06-01)
+  has no such tactic, so the rule uses `DefenseEvasion`.
+- ATT&CK does not mention AdminSDHolder. T1098 is this repository's judgement; Splunk
+  maps the same behaviour to T1546. See the [detection README](../detections/adminsdholder/README.md#attck-mapping).
 
 Each detection README also lists the ATT&CK mitigations (M-ids) that remove the
 weakness, and the variants of the technique the detection does not catch.
@@ -30,24 +40,24 @@ up, and the pipeline that validates the content.
 |---|---|
 | Auditable events are not logged | [Lab setup](lab-setup.md#5-turn-on-the-audit-policy) enables the audit subcategories that produce each event the detections read |
 | Logs are only stored locally | Events are forwarded off the host to a Log Analytics workspace by the Azure Monitor Agent |
-| No alerting on suspicious activity | Five scheduled analytics rules raise incidents with mapped entities |
-| Alerting thresholds are not effective | Thresholds are named values at the top of each query, and each rule has fire and no-fire test cases |
-| Logs are not monitored | Five hunting queries for analyst review. Response steps are in each detection README |
+| No alerting on suspicious activity | Seven scheduled analytics rules raise incidents with mapped entities and specific alert titles |
+| Alerting thresholds are not effective | Thresholds are named values at the top of each query; exclusions are reviewed watchlist entries with an owner and expiry; every rule has fire and no-fire test cases |
+| Logs are not monitored | Seven hunting queries for analyst review. Response steps are in each detection README |
 
 ### OWASP Top 10 CI/CD Security Risks
 
 | Risk | Status | How |
 |---|---|---|
-| CICD-SEC-1 Insufficient Flow Control | Owner | Branch protection and required reviews are GitHub settings, not repository files. Turn on "require status checks" for `main` |
-| CICD-SEC-2 Inadequate Identity and Access Management | Owner | Account-level: use 2FA and keep collaborators minimal |
+| CICD-SEC-1 Insufficient Flow Control | Partly | Deployment runs only on `main` and only after the static checks and emulator tests pass. Owner: branch protection with required status checks on `main`, and required reviewers on the `sentinel` environment |
+| CICD-SEC-2 Inadequate Identity and Access Management | Partly | The deploy identity is a dedicated app registration whose federated credential accepts only this repository's `sentinel` environment, with Microsoft Sentinel Contributor on one resource group. Owner: 2FA and minimal collaborators |
 | CICD-SEC-3 Dependency Chain Abuse | Addressed | Exact versions. Python installs with `--require-hashes`; npm installs from the lockfile with integrity hashes. Dependabot raises updates for actions, pip and npm |
 | CICD-SEC-4 Poisoned Pipeline Execution | Addressed | The workflow uses `pull_request`, not `pull_request_target`, holds no secrets, and npm install scripts are disabled |
-| CICD-SEC-5 Insufficient Pipeline-Based Access Controls | Addressed | Workflow token is `contents: read`. Checkout does not persist credentials |
-| CICD-SEC-6 Insufficient Credential Hygiene | Addressed | No secrets in the repository or the workflow. Placeholders only. `.gitignore` blocks key and ticket files |
+| CICD-SEC-5 Insufficient Pipeline-Based Access Controls | Addressed | Workflow token is `contents: read`. Only the deploy job adds `id-token: write`. Checkout does not persist credentials |
+| CICD-SEC-6 Insufficient Credential Hygiene | Addressed | No secrets in the repository or the workflow. Azure access uses OpenID Connect, so there is no client secret to store or rotate. `.gitignore` blocks key and ticket files |
 | CICD-SEC-7 Insecure System Configuration | Partly | GitHub-hosted runners on a fixed image version. Nothing self-hosted |
-| CICD-SEC-8 Ungoverned Usage of Third-Party Services | Addressed | Two first-party GitHub actions and one Microsoft container image. No third-party apps |
+| CICD-SEC-8 Ungoverned Usage of Third-Party Services | Addressed | Three GitHub actions and one Azure action, all first-party, and one Microsoft container image. No third-party apps |
 | CICD-SEC-9 Improper Artifact Integrity Validation | Addressed | Actions pinned to commit SHAs. The Kusto engine image is pinned by digest |
-| CICD-SEC-10 Insufficient Logging and Visibility | Partly | Workflow run logs only. Nothing is deployed from the pipeline |
+| CICD-SEC-10 Insufficient Logging and Visibility | Partly | Workflow run logs, a what-if preview before every deployment, and the Azure activity log for the deployment itself |
 
 ## NIST SP 800-53 Rev. 5
 
@@ -56,8 +66,9 @@ up, and the pipeline that validates the content.
 | AU-2 Event Logging | The audit policy and the collection rule name the exact events collected, and why |
 | AU-12 Audit Record Generation | Audit subcategories are enabled on the domain controller in the setup guide |
 | AU-6 Audit Record Review, Analysis and Reporting | Analytics rules and hunting queries over the collected events |
-| SI-4 System Monitoring | Detections for five credential access techniques, with documented gaps |
+| SI-4 System Monitoring | Detections for seven Active Directory attack techniques, with documented gaps |
 | AC-2(12) Account Monitoring for Atypical Usage | Password spraying, DCSync and Golden Ticket detections flag atypical account use |
+| CM-3 Configuration Change Control | Detection changes go through review and CI; AdminSDHolder and DCShadow detections flag unauthorised directory configuration changes |
 | IR-4 Incident Handling | A response section in each detection README |
 
 ## CIS Controls v8

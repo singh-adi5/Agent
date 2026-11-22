@@ -36,8 +36,9 @@ and the request are wrong.
 ## Tuning
 
 - **Accounts that need pre-authentication disabled.** Some appliances and Unix
-  Kerberos integrations do. Each one is a standing weakness. Add it to
-  `excluded_targets` and track the fix.
+  Kerberos integrations do. Each one is a standing weakness. Add an [`ADDetectionExclusions`](../../watchlists/ADDetectionExclusions.csv) row
+  (`Detection` = `asrep-roasting`, `Value` = the account) with an `ExpiresOn` date
+  that matches the remediation plan, so the alert returns if the fix slips.
 - **`account_threshold`** defaults to 1. Raise it to alert only on bulk roasting if
   single-account alerts are too frequent, but fixing the accounts is the better route.
 

@@ -26,6 +26,8 @@ asrep-roasting-incident.png     asrep-roasting-logs.png
 dcsync-incident.png             dcsync-logs.png
 password-spraying-incident.png  password-spraying-logs.png
 golden-ticket-incident.png      golden-ticket-logs.png
+dcshadow-incident.png           dcshadow-logs.png
+adminsdholder-incident.png      adminsdholder-logs.png
 ```
 
 Add `evidence.md` with the capture date for each set and the lab build used.

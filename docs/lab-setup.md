@@ -107,9 +107,11 @@ elevated PowerShell:
 auditpol /set /subcategory:"Kerberos Authentication Service"     /success:enable /failure:enable
 auditpol /set /subcategory:"Kerberos Service Ticket Operations"  /success:enable /failure:enable
 auditpol /set /subcategory:"Directory Service Access"            /success:enable /failure:enable
+auditpol /set /subcategory:"Directory Service Changes"           /success:enable
+auditpol /set /subcategory:"Computer Account Management"         /success:enable
 auditpol /set /subcategory:"Logon"                               /success:enable /failure:enable
 
-auditpol /get /category:"Account Logon","DS Access","Logon/Logoff"
+auditpol /get /category:"Account Logon","Account Management","DS Access","Logon/Logoff"
 ```
 
 | Subcategory | Events it produces | Needed by |
@@ -117,11 +119,13 @@ auditpol /get /category:"Account Logon","DS Access","Logon/Logoff"
 | Kerberos Authentication Service | 4768, 4771 | Golden Ticket, Password spraying |
 | Kerberos Service Ticket Operations | 4769, 4770 | Kerberoasting, Golden Ticket |
 | Directory Service Access | 4662 | DCSync |
+| Directory Service Changes | 5136 | DCShadow, AdminSDHolder |
+| Computer Account Management | 4742 | DCShadow |
 | Logon | 4624, 4625 | DCSync, Password spraying |
 
 `auditpol` changes the local policy. If a Group Policy Object later sets advanced
 audit policy for domain controllers, the GPO wins. For a lab that outlives one
-session, set the same four subcategories in the Default Domain Controllers Policy
+session, set the same subcategories in the Default Domain Controllers Policy
 under Computer Configuration > Policies > Windows Settings > Security Settings >
 Advanced Audit Policy Configuration.
 
@@ -129,6 +133,12 @@ Event 4662 for replication also depends on the audit entries (SACL) on the domai
 object. A new domain audits use of the replication rights by default. If the DCSync
 simulation produces no 4662, check the Auditing tab on the `contoso.local` object in
 Active Directory Users and Computers (Advanced Features on).
+
+Event 5136 is written only for objects whose SACL audits the change. For the
+AdminSDHolder rule, open the advanced security settings of
+`CN=AdminSDHolder,CN=System,DC=contoso,DC=local`, and on the Auditing tab add a success
+entry for Everyone covering "Write all properties" and "Modify permissions" if none
+applies.
 
 ## 6. Create lab accounts
 
@@ -221,7 +231,7 @@ There are two ways. Use one.
 4. On **Collect**, choose **Custom** and paste this XPath filter:
 
    ```text
-   Security!*[System[(EventID=4624 or EventID=4625 or EventID=4662 or EventID=4768 or EventID=4769 or EventID=4770 or EventID=4771)]]
+   Security!*[System[(EventID=4624 or EventID=4625 or EventID=4662 or EventID=4742 or EventID=4768 or EventID=4769 or EventID=4770 or EventID=4771 or EventID=5136)]]
    ```
 
 5. **Review + create**.

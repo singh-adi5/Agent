@@ -20,7 +20,7 @@ flowchart LR
    subcategories nothing downstream can fire ([lab setup, step 5](lab-setup.md#5-turn-on-the-audit-policy)).
 2. The Azure Monitor Agent reads the Security log and authenticates with the VM's
    managed identity. No workspace key is stored on the host.
-3. The Data Collection Rule filters to seven event IDs with an XPath query and sends
+3. The Data Collection Rule filters to nine event IDs with an XPath query and sends
    them on the `Microsoft-SecurityEvent` stream ([deploy/dcr-securityevent.json](../deploy/dcr-securityevent.json)).
 4. Events land in `SecurityEvent`: common fields as typed columns, the full payload as
    XML in `EventData`.
@@ -35,10 +35,12 @@ flowchart LR
 | 4624 | Successful logon | DCSync (source address), password spraying hunt |
 | 4625 | Failed logon | Password spraying |
 | 4662 | Operation performed on a directory object | DCSync |
+| 4742 | Computer account changed | DCShadow |
 | 4768 | Kerberos TGT requested | AS-REP roasting, Golden Ticket, password spraying hunt |
 | 4769 | Kerberos service ticket requested | Kerberoasting, Golden Ticket |
 | 4770 | Kerberos service ticket renewed | Golden Ticket |
 | 4771 | Kerberos pre-authentication failed | Password spraying |
+| 5136 | Directory object modified | DCShadow, AdminSDHolder |
 
 Sentinel's built-in "Common" collection tier does not include 4662, so DCSync needs
 either the "All Security Events" tier or a custom XPath filter. The lab uses a custom
@@ -74,13 +76,27 @@ real time. Each rule's window is its frequency plus five minutes, so no slice of
 events falls between two runs. Incident grouping on matching entities absorbs the
 occasional duplicate alert.
 
-**Tunables at the top.** Thresholds and allow-lists are `let` statements at the start
-of each query, so they can be changed without reading the logic. In a production
-tenant the allow-lists belong in Sentinel watchlists.
+**Thresholds in the query, allow-lists in watchlists.** Thresholds are `let` statements
+at the top of each query: they change rarely and belong under review with the logic.
+Lists that change with the environment live in two Sentinel watchlists, read with
+`_GetWatchlist()`:
 
-**Ship disabled.** The ARM build creates every rule disabled. Allow-lists, the DCSync
-domain controller list in particular, are set for the environment before a rule is
-enabled.
+| Watchlist | Search key | Holds |
+|---|---|---|
+| `ADDomainControllers` | `SamAccountName` | Computer account of every DC |
+| `ADDetectionExclusions` | `Value` | Per-detection exclusions with `Reason`, `Owner` and an optional `ExpiresOn` |
+
+An exclusion stops applying after its `ExpiresOn` date, so a temporary exception does
+not become permanent by default. The source CSV files are in
+[watchlists/](../watchlists/) and the linter checks them: every `Detection` value must
+name a detection folder and every date must parse. Queries read CSV columns through
+`column_ifexists()`, as Microsoft's own content does, so a missing or empty watchlist
+yields an empty list rather than a query error.
+
+**Enablement is a deployment parameter.** The ARM template's `enableRules` parameter
+defaults to false. Rules go live once the watchlists, the DC list in particular, are
+populated for the environment, and every later deployment passes the same value so a
+routine redeploy does not switch rules off.
 
 ## Trust boundaries
 

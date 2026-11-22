@@ -1,4 +1,4 @@
-# credentials and key material
+# Credential material and attack tool output. Never commit these, even from a lab.
 *.pem
 *.key
 *.pfx
@@ -9,19 +9,19 @@
 *.hashes
 hashes.txt
 users.txt
-local.settings.json
 
-# generated deployment output
-sentinel-rules.arm.json
-dcr-securityevent.local.json
+# Local copies of deployment files with real identifiers filled in
+*.local.json
 
-# tooling
-.terraform/
+# Build output and dependencies
+build/
+node_modules/
 __pycache__/
 *.pyc
 .venv/
-node_modules/
-.DS_Store
+.ruff_cache/
 
-# project conventions kept private, not in public view
-CLAUDE.md
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/

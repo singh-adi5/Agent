@@ -1,0 +1,22 @@
+# Tool configuration only. The repository is not a Python package for distribution.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["tools/kql-parser/node_modules"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",   # pycodestyle
+  "F",        # pyflakes
+  "I",        # import order
+  "B",        # bugbear
+  "UP",       # pyupgrade
+  "SIM",      # simplify
+  "S",        # bandit security checks
+  "PTH",      # pathlib over os.path
+]
+
+[tool.ruff.lint.per-file-ignores]
+# unittest assertions are methods, but the test helpers build files in temp dirs.
+"tests/*" = ["S108"]

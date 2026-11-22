@@ -27,16 +27,22 @@ query: |
   // Without the extra 5 minutes each run would skip a slice of events.
   // The longer queryPeriod only feeds the 4624 lookup.
   let detection_window = 20m;
-  // Lower-case sAMAccountName of every domain controller. Keep this current.
-  let domain_controllers = dynamic(["dc01$"]);
-  // Lower-case sAMAccountNames that replicate by design, e.g. a directory sync service account.
-  let approved_replication_accounts = dynamic([]);
+  // Computer account of every domain controller, from the ADDomainControllers watchlist.
+  let domain_controllers = _GetWatchlist("ADDomainControllers") | project Account = tolower(SearchKey);
+  // Exclusions live in the ADDetectionExclusions watchlist. A row stops applying after its ExpiresOn date.
+  let approved_replication_accounts = _GetWatchlist("ADDetectionExclusions")
+      | where column_ifexists("Detection", "") == "dcsync"
+      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) > now()
+      | project Value = tolower(SearchKey);
   let get_changes = "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2";
   let get_changes_all = "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2";
   let get_changes_filtered = "89e95b76-444d-4c62-991a-0facbeda640c";
+  // A logon ID is unique on a DC until it restarts. If one does repeat inside the query period,
+  // arg_max keeps the most recent logon, so the result is deterministic.
   let network_logons = SecurityEvent
       | where EventID == 4624 and LogonType == 3
-      | summarize SourceIp = take_any(IpAddress) by Computer, TargetLogonId;
+      | summarize arg_max(TimeGenerated, IpAddress) by Computer, TargetLogonId
+      | project Computer, TargetLogonId, SourceIp = replace_string(IpAddress, "::ffff:", "");
   SecurityEvent
   | where TimeGenerated > ago(detection_window)
   | where EventID == 4662 and ObjectServer == "DS"

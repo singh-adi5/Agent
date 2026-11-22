@@ -23,8 +23,11 @@ relevantTechniques:
   - T1558.003
 query: |
   let spn_threshold = 3;
-  // Lower-case sAMAccountNames allowed to do this, e.g. an approved vulnerability scanner.
-  let excluded_requesters = dynamic([]);
+  // Exclusions live in the ADDetectionExclusions watchlist. A row stops applying after its ExpiresOn date.
+  let excluded_requesters = _GetWatchlist("ADDetectionExclusions")
+      | where column_ifexists("Detection", "") == "kerberoasting"
+      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) > now()
+      | project Value = tolower(SearchKey);
   SecurityEvent
   | where EventID == 4769
   // SecurityEvent has no column for the ticket encryption type, so it is read from the raw event XML.

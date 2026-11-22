@@ -1,0 +1,14 @@
+# Sentinel watchlists read by the detections with _GetWatchlist("<alias>").
+# Items live in the CSV file named by `file`. A watchlist with no data rows is not
+# deployed, and _GetWatchlist returns an empty table for it.
+- alias: ADDomainControllers
+  displayName: AD domain controllers
+  description: Computer account (sAMAccountName) of every domain controller. Activity by these accounts is expected replication.
+  itemsSearchKey: SamAccountName
+  file: ADDomainControllers.csv
+
+- alias: ADDetectionExclusions
+  displayName: AD detection exclusions
+  description: Accounts or addresses excluded from one detection, with a reason, an owner and an optional expiry date (YYYY-MM-DD).
+  itemsSearchKey: Value
+  file: ADDetectionExclusions.csv

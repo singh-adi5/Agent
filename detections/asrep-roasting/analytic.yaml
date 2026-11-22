@@ -23,8 +23,11 @@ relevantTechniques:
   - T1558.004
 query: |
   let account_threshold = 1;
-  // Lower-case sAMAccountNames legitimately set to not require pre-authentication.
-  let excluded_targets = dynamic([]);
+  // Exclusions live in the ADDetectionExclusions watchlist. A row stops applying after its ExpiresOn date.
+  let excluded_targets = _GetWatchlist("ADDetectionExclusions")
+      | where column_ifexists("Detection", "") == "asrep-roasting"
+      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) > now()
+      | project Value = tolower(SearchKey);
   SecurityEvent
   | where EventID == 4768
   // SecurityEvent has no column for the pre-auth type or the encryption type, so both are read from the raw event XML.

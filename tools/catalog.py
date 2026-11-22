@@ -70,5 +70,15 @@ def queries(root: Path = REPO_ROOT) -> list[dict[str, str]]:
     return found
 
 
+def main() -> None:
+    """Print every query as JSON, behind the _GetWatchlist stand-in, for the parser check."""
+    from tools import watchlists  # imported here: tools.watchlists imports this module
+
+    prefix = watchlists.stub(watchlists.load())
+    offset = prefix.count("\n")
+    entries = [{**q, "query": prefix + q["query"], "offset": offset} for q in queries()]
+    json.dump(entries, sys.stdout)
+
+
 if __name__ == "__main__":
-    json.dump(queries(), sys.stdout)
+    main()

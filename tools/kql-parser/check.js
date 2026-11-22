@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Parse and analyse KQL with Microsoft's Kusto language service.
 //
-// Reads a JSON array of {label, query} on stdin (python -m tools.catalog prints it)
+// Reads a JSON array of {label, query, offset} on stdin (python -m tools.catalog prints it;
+// offset is the number of lines prepended ahead of the query itself)
 // and fails on any syntax error or any reference to a column that is not in
 // tools/securityevent.schema. It does not run the queries.
 "use strict";
@@ -29,7 +30,7 @@ if (!Array.isArray(entries) || entries.length === 0) {
 }
 
 let failures = 0;
-for (const { label, query } of entries) {
+for (const { label, query, offset = 0 } of entries) {
   const diagnostics = Kusto.Language.KustoCode.ParseAndAnalyze(query, globals).GetDiagnostics();
   if (diagnostics.Count === 0) {
     console.log(`ok   ${label}`);
@@ -39,7 +40,7 @@ for (const { label, query } of entries) {
   console.log(`FAIL ${label}`);
   for (let i = 0; i < diagnostics.Count; i += 1) {
     const item = diagnostics.getItem(i);
-    const line = query.slice(0, item.Start).split("\n").length;
+    const line = query.slice(0, item.Start).split("\n").length - offset;
     console.log(`     line ${line}: ${item.Message}`);
   }
 }

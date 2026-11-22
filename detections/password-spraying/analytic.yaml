@@ -24,8 +24,11 @@ relevantTechniques:
 query: |
   let account_threshold = 10;
   let max_attempts_per_account = 5;
-  // Addresses that legitimately authenticate many users, e.g. a VPN concentrator or web proxy.
-  let excluded_sources = dynamic([]);
+  // Exclusions live in the ADDetectionExclusions watchlist. A row stops applying after its ExpiresOn date.
+  let excluded_sources = _GetWatchlist("ADDetectionExclusions")
+      | where column_ifexists("Detection", "") == "password-spraying"
+      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) > now()
+      | project Value = tolower(SearchKey);
   let kerberos_failures = SecurityEvent
       | where EventID == 4771
       | extend

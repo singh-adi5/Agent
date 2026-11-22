@@ -30,5 +30,6 @@ ObjectServer: string
 ObjectName: string
 ObjectType: string
 Properties: string
+OperationType: string
 AccessMask: string
 WorkstationName: string

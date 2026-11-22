@@ -11,7 +11,10 @@ PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
 def string_literal(value: object) -> str:
     """A double-quoted KQL string literal."""
     text = "" if value is None else str(value)
-    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    # Backslash first, so the escapes added after it are not doubled.
+    for raw, escaped in (("\\", "\\\\"), ('"', '\\"'), ("\n", "\\n"), ("\r", "\\r"), ("\t", "\\t")):
+        text = text.replace(raw, escaped)
+    return '"' + text + '"'
 
 
 def split_top_level(text: str, separator: str) -> list[str]:

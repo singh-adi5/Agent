@@ -18,7 +18,10 @@ tactics:
 relevantTechniques:
   - T1207
 query: |
-  let domain_controllers = _GetWatchlist("ADDomainControllers") | project Account = tolower(SearchKey);
+  let domain_controllers = _GetWatchlist("ADDomainControllers")
+      | project Account = tolower(SearchKey), Dn = tolower(column_ifexists("DistinguishedName", ""));
+  let dc_accounts = toscalar(domain_controllers | summarize make_set(Account));
+  let dc_dns = toscalar(domain_controllers | where isnotempty(Dn) | summarize make_set(Dn));
   SecurityEvent
   | where EventID in (4742, 5136)
   | extend
@@ -31,7 +34,9 @@ query: |
   | extend Spn = iff(EventID == 4742, ChangedSpns, iff(AttributeName =~ "servicePrincipalName", AttributeValue, ""))
   | where Spn contains "GC/" or Spn contains "E3514235-4B06-11D1-AB04-00C04FC2DCD2/"
   | extend TargetAccount = tolower(iff(EventID == 4742, RawTarget, strcat(extract(@"^CN=([^,]+)", 1, ObjectDN), "$")))
-  | extend IsKnownDc = TargetAccount in (domain_controllers)
+  | extend IsKnownDc = iff(EventID == 4742,
+      TargetAccount in (dc_accounts),
+      replace_string(tolower(ObjectDN), ",", ";") in (dc_dns))
   | summarize
       FirstSeen = min(TimeGenerated),
       LastSeen = max(TimeGenerated),

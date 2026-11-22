@@ -36,6 +36,7 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
 
 from tools import catalog, watchlists
+from tools.kql import string_literal
 
 DEFAULT_URL = os.environ.get("KUSTO_URL", "http://localhost:8080")
 DATABASE = "NetDefaultDB"
@@ -49,10 +50,7 @@ def kql_literal(value: object, kind: str, now: datetime) -> str:
         return f"datetime({stamp})"
     if kind == "int":
         return "int(null)" if value is None else f"int({int(value)})"
-    if value is None:
-        return '""'
-    text = str(value).replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{text}"'
+    return string_literal(value)
 
 
 def build_csl(
@@ -134,7 +132,12 @@ def run(engine: Engine) -> tuple[int, int]:
         print(folder.name)
         for kind, query, selected in targets:
             for case in selected:
-                prefix = watchlists.stub(lists, case.get("watchlist"))
+                today = now.strftime("%Y-%m-%d")
+                items = [
+                    {k: str(v).replace("{today}", today) for k, v in item.items()}
+                    for item in case.get("watchlist", [])
+                ]
+                prefix = watchlists.stub(lists, items)
                 csl = build_csl(columns, case["events"], query, now, prefix)
                 names, rows = engine.query(csl)
                 ok = (len(rows) > 0) == (case["expect"] == "fire")

@@ -1,6 +1,6 @@
 import unittest
 
-from tools.kql import output_columns, placeholders, split_top_level
+from tools.kql import output_columns, placeholders, split_top_level, string_literal
 
 
 class SplitTopLevel(unittest.TestCase):
@@ -9,6 +9,13 @@ class SplitTopLevel(unittest.TestCase):
             split_top_level("a, f(b, c), 'd, e', [g, h]", ","),
             ["a", " f(b, c)", " 'd, e'", " [g, h]"],
         )
+
+
+class StringLiteral(unittest.TestCase):
+    def test_escapes_quotes_backslashes_and_control_characters(self):
+        self.assertEqual(string_literal('a"b\\c'), '"a\\"b\\\\c"')
+        self.assertEqual(string_literal("GC/a\n\t\tHOST/b\r"), '"GC/a\\n\\t\\tHOST/b\\r"')
+        self.assertEqual(string_literal(None), '""')
 
 
 class OutputColumns(unittest.TestCase):

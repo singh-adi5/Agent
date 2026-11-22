@@ -35,7 +35,7 @@ class Watchlist:
         """Header and rows of the CSV file."""
         text = self.path.read_text(encoding="utf-8")
         reader = csv.DictReader(io.StringIO(text))
-        rows = [{k: (v or "").strip() for k, v in row.items()} for row in reader]
+        rows = [{k: v or "" for k, v in row.items()} for row in reader]
         return list(reader.fieldnames or []), rows
 
     def raw_content(self) -> str:

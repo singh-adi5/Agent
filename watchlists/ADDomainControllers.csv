@@ -1,2 +1,2 @@
-SamAccountName,Hostname
-dc01$,dc01.contoso.local
+SamAccountName,Hostname,DistinguishedName
+dc01$,dc01.contoso.local,CN=DC01;OU=Domain Controllers;DC=contoso;DC=local

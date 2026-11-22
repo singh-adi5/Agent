@@ -3,7 +3,7 @@
 # deployed, and _GetWatchlist returns an empty table for it.
 - alias: ADDomainControllers
   displayName: AD domain controllers
-  description: Computer account (sAMAccountName) of every domain controller. Activity by these accounts is expected replication.
+  description: Computer account (sAMAccountName), host name and distinguished name of every domain controller. DistinguishedName is written with ; between components.
   itemsSearchKey: SamAccountName
   file: ADDomainControllers.csv
 

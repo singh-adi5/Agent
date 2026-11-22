@@ -68,6 +68,19 @@ MINUTES = {"m": 1, "h": 60, "d": 1440}
 # Sentinel accepts 5 minutes to 14 days for both frequency and period.
 MIN_MINUTES, MAX_MINUTES = 5, 14 * 1440
 AGE_KEY = "age_minutes"
+PLAIN_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+DN_SEMICOLON = re.compile(r"^CN=[^,;]+(;[A-Za-z]+=[^,;]+)+$")
+
+
+def _is_plain_date(value: str) -> bool:
+    """YYYY-MM-DD and a real date. KQL's todatetime() reads this form; ISO week dates fail."""
+    if not PLAIN_DATE.match(value):
+        return False
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
 
 
 def to_minutes(value: object) -> int | None:
@@ -300,17 +313,24 @@ def lint_watchlists(root: Path, detection_names: set[str]) -> dict[str, list[str
         if key not in header:
             errors.append(f"itemsSearchKey '{key}' is not a column")
         for number, row in enumerate(rows, start=2):
+            # Sentinel receives the file as written, so values must already be clean.
+            padded = sorted(c for c, v in row.items() if c and v and v != v.strip())
+            if padded:
+                errors.append(f"line {number}: leading or trailing space in {', '.join(padded)}")
             if not (row.get(key) or "").strip():
                 errors.append(f"line {number}: empty {key}")
-            detection = (row.get("Detection") or "").strip()
+            detection = row.get("Detection") or ""
             if "Detection" in header and detection not in detection_names:
                 errors.append(f"line {number}: unknown detection '{detection}'")
-            expires = (row.get("ExpiresOn") or "").strip()
-            if expires:
-                try:
-                    date.fromisoformat(expires)
-                except ValueError:
-                    errors.append(f"line {number}: ExpiresOn must be YYYY-MM-DD")
+            expires = row.get("ExpiresOn") or ""
+            if expires and not _is_plain_date(expires):
+                errors.append(f"line {number}: ExpiresOn must be YYYY-MM-DD")
+            dn = row.get("DistinguishedName") or ""
+            if "DistinguishedName" in header and not DN_SEMICOLON.match(dn):
+                errors.append(
+                    f"line {number}: DistinguishedName must start with CN= and use ; "
+                    "between components, not commas"
+                )
         results[csv_label] = errors
     return results
 

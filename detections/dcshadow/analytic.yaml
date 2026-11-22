@@ -2,10 +2,11 @@ id: 796b104e-afe8-494e-80da-520df72911fb
 name: DCShadow - domain controller SPN registered on a non-DC computer account
 description: |
   Detects a Global Catalog (GC/) or directory replication (DRSUAPI) service principal name being
-  added to or removed from a computer account that is not a listed domain controller (4742 or
-  5136). DCShadow registers these SPNs so a rogue host can push changes into Active Directory
+  added to a computer account (4742 or 5136), or removed from one (5136), where the account is
+  not a listed domain controller. DCShadow registers these SPNs so a rogue host can push changes into Active Directory
   through replication, then removes them. This is the pattern of Mimikatz lsadump::dcshadow.
-  Legitimate on real domain controllers, which come from the ADDomainControllers watchlist.
+  Legitimate on real domain controllers, which come from the ADDomainControllers watchlist and
+  are matched by account name (4742) or full distinguished name (5136).
 severity: High
 requiredDataConnectors:
   - connectorId: WindowsSecurityEvents
@@ -23,12 +24,17 @@ tactics:
 relevantTechniques:
   - T1207
 query: |
-  // Computer account of every domain controller, from the ADDomainControllers watchlist.
-  let domain_controllers = _GetWatchlist("ADDomainControllers") | project Account = tolower(SearchKey);
-  // Exclusions live in the ADDetectionExclusions watchlist. A row stops applying after its ExpiresOn date.
+  // Domain controllers from the ADDomainControllers watchlist: the computer account (for 4742)
+  // and the object DN (for 5136). A CN is only unique within its container, so another object
+  // can share a DC's name; the full DN cannot. DNs are stored with ";" between components.
+  let domain_controllers = _GetWatchlist("ADDomainControllers")
+      | project Account = tolower(SearchKey), Dn = tolower(column_ifexists("DistinguishedName", ""));
+  let dc_accounts = toscalar(domain_controllers | summarize make_set(Account));
+  let dc_dns = toscalar(domain_controllers | where isnotempty(Dn) | summarize make_set(Dn));
+  // Exclusions live in the ADDetectionExclusions watchlist. A row applies through its ExpiresOn date (UTC).
   let excluded_targets = _GetWatchlist("ADDetectionExclusions")
       | where column_ifexists("Detection", "") == "dcshadow"
-      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) > now()
+      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) + 1d > now()
       | project Value = tolower(SearchKey);
   // GC/ is the Global Catalog SPN prefix. E3514235-4B06-11D1-AB04-00C04FC2DCD2 is the directory
   // replication (DRSUAPI) RPC interface. Only domain controllers should carry either.
@@ -49,7 +55,10 @@ query: |
   | where Spn contains gc_spn or Spn contains drsuapi_spn
   // 4742 names the computer account directly. 5136 names the object, so the account is its CN plus $.
   | extend TargetAccount = tolower(iff(EventID == 4742, RawTarget, strcat(extract(@"^CN=([^,]+)", 1, ObjectDN), "$")))
-  | where TargetAccount !in (domain_controllers)
+  | extend IsKnownDc = iff(EventID == 4742,
+      TargetAccount in (dc_accounts),
+      replace_string(tolower(ObjectDN), ",", ";") in (dc_dns))
+  | where not(IsKnownDc)
   | where TargetAccount !in (excluded_targets)
   | extend Actor = tolower(RawActor)
   | summarize
@@ -58,13 +67,14 @@ query: |
       Changes = count(),
       Spns = make_set(Spn, 20),
       EventIds = make_set(EventID),
+      Objects = make_set(ObjectDN, 10),
       Actor = take_any(Actor),
       DomainControllers = make_set(Computer, 20),
       Computer = take_any(Computer)
       // Grouped across domain controllers, so one rogue registration is one alert.
       by TargetAccount
   | extend TargetHost = trim_end(@"\$", TargetAccount)
-  | project StartTime, EndTime, Computer, DomainControllers, TargetAccount, TargetHost, Actor, Changes, EventIds, Spns
+  | project StartTime, EndTime, Computer, DomainControllers, TargetAccount, TargetHost, Actor, Changes, EventIds, Spns, Objects
 entityMappings:
   - entityType: Host
     fieldMappings:

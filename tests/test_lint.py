@@ -213,5 +213,28 @@ class Watchlists(unittest.TestCase):
             ["line 2: ExpiresOn must be YYYY-MM-DD"],
         )
 
+    def test_iso_week_date_fails(self):
+        # Python accepts 2099-W01-1 as ISO 8601; KQL's todatetime() does not.
+        self.assertEqual(
+            self.lint_with_row("dcsync,msol_abc,sync,identity,2099-W01-1"),
+            ["line 2: ExpiresOn must be YYYY-MM-DD"],
+        )
+
+    def test_surrounding_space_fails(self):
+        self.assertEqual(
+            self.lint_with_row("dcsync, msol_abc ,sync,identity,"),
+            ["line 2: leading or trailing space in Value"],
+        )
+
+    def test_domain_controller_dn_must_use_semicolons(self):
+        dcs = self.root / "watchlists" / "ADDomainControllers.csv"
+        dcs.write_text(
+            "SamAccountName,Hostname,DistinguishedName\n"
+            'dc01$,dc01.contoso.local,"CN=DC01,OU=Domain Controllers,DC=contoso,DC=local"\n'
+        )
+        names = {d.name for d in catalog.detection_dirs()}
+        errors = lint.lint_watchlists(self.root, names)["watchlists/ADDomainControllers.csv"]
+        self.assertTrue(any("DistinguishedName must start with CN=" in e for e in errors))
+
     def test_empty_search_key_fails(self):
         self.assertEqual(self.lint_with_row("dcsync,,sync,identity,"), ["line 2: empty Value"])

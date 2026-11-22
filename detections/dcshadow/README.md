@@ -31,9 +31,15 @@ Two events record SPN changes on a computer account:
 | 5136 | Directory service changes | `AttributeValue` when `AttributeLDAPDisplayName` is `servicePrincipalName` |
 
 The rule keeps changes whose SPN contains `GC/` or the replication interface GUID and
-whose target is not in the `ADDomainControllers` watchlist. For 4742 the target account
-is `TargetUserName`; for 5136 it is the object's CN plus `$`. Additions and removals
-both match, because DCShadow removes the SPNs after use.
+whose target is not a listed domain controller:
+
+- **4742** names the computer account, matched against the watchlist's `SamAccountName`.
+  4742 records the account's full SPN list after the change, so it shows the SPN being
+  added but cannot show it being removed.
+- **5136** names the object, matched against the watchlist's full `DistinguishedName`.
+  A CN is only unique within its container, so matching on CN would let a rogue object
+  named like a DC in another container pass as that DC. 5136 records additions
+  (`%%14674`) and removals (`%%14675`), so it also catches the clean-up step.
 
 None of these fields are typed columns in `SecurityEvent`; all are parsed from
 `EventData`. The logic follows the public Sigma rule *Possible DC Shadow Attack*
@@ -47,17 +53,23 @@ Defense Evasion. Sentinel's API does not have that tactic yet (checked against A
 versions 2023-02-01 and 2025-06-01), so the rule is tagged `DefenseEvasion`, the
 closest value the API accepts.
 
+The reported `TargetAccount` for a 5136 is the object's CN plus `$`; `Objects` holds
+the full DN.
+
 ## Tuning
 
 - **Domain controller promotion** writes the same SPNs to the new DC's account. Add the
-  DC to `ADDomainControllers` as part of the build, or expect one alert per promotion.
+  DC to `ADDomainControllers` (account, host name and DN) as part of the build, or
+  expect one alert per promotion.
 - **Exclusions** go in `ADDetectionExclusions` with `Detection` set to `dcshadow` and
   the computer account (`name$`) as `Value`. There should be very few.
 
 ## Coverage gaps
 
 - Requires "Audit Computer Account Management" for 4742, or "Audit Directory Service
-  Changes" plus auditing on computer objects for 5136.
+  Changes" plus auditing on computer objects for 5136. Collect both: only 5136 sees the
+  SPNs being removed, and the public Mimikatz sample checked during review contained
+  5136 events only.
 - An attacker who already controls a genuine DC does not need to register SPNs.
 - DCShadow also creates an `nTDSDSA` object in the configuration partition. That is a
   stronger signal but needs auditing on the Sites container, which is not set by
@@ -71,9 +83,10 @@ before enabling the rule to confirm the watchlist is complete.
 
 ## Validation
 
-**Emulator.** [tests.json](tests.json) covers a 4742 and a 5136 true positive, a listed
-DC registering its own SPN, an ordinary SPN change, an active exclusion, and an expired
-exclusion that must fire again.
+**Emulator.** [tests.json](tests.json) covers 4742 and 5136 true positives, including
+the multi-line SPN list 4742 really records, an SPN removal, and an object reusing a
+DC's CN in another container; listed DCs writing their own SPNs by account and by DN;
+an ordinary SPN change; and exclusions that are active, expire today, or have expired.
 
 **Lab.** Telemetry can be generated with Mimikatz `lsadump::dcshadow`
 ([gentilkiwi/mimikatz](https://github.com/gentilkiwi/mimikatz/wiki)) or

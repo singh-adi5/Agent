@@ -1,0 +1,55 @@
+{
+  "cases": [
+    {
+      "name": "Global Catalog SPN added to a workstation account (4742)",
+      "expect": "fire",
+      "assert": {"TargetAccount": "ws01$", "TargetHost": "ws01", "Actor": "labadmin"},
+      "events": [
+        {"age_minutes": 5, "EventID": 4742, "Computer": "dc01.contoso.local", "TargetUserName": "WS01$", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ServicePrincipalNames\">GC/ws01.contoso.local/contoso.local</Data>"}
+      ]
+    },
+    {
+      "name": "replication SPN written to a workstation object (5136)",
+      "expect": "fire",
+      "assert": {"TargetAccount": "ws01$"},
+      "events": [
+        {"age_minutes": 5, "EventID": 5136, "Computer": "dc01.contoso.local", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ObjectDN\">CN=WS01,CN=Computers,DC=contoso,DC=local</Data><Data Name=\"AttributeLDAPDisplayName\">servicePrincipalName</Data><Data Name=\"AttributeValue\">E3514235-4B06-11D1-AB04-00C04FC2DCD2/7a1c0c3e-2f6b-4a3e-9d2a-1b0c5e8f4d21/contoso.local</Data><Data Name=\"OperationType\">%%14674</Data>"}
+      ]
+    },
+    {
+      "name": "listed domain controller registering its own Global Catalog SPN",
+      "expect": "silent",
+      "events": [
+        {"age_minutes": 5, "EventID": 4742, "Computer": "dc01.contoso.local", "TargetUserName": "DC01$", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ServicePrincipalNames\">GC/dc01.contoso.local/contoso.local</Data>"}
+      ]
+    },
+    {
+      "name": "ordinary SPN change on a workstation",
+      "expect": "silent",
+      "events": [
+        {"age_minutes": 5, "EventID": 4742, "Computer": "dc01.contoso.local", "TargetUserName": "WS01$", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ServicePrincipalNames\">HOST/ws01.contoso.local</Data>"}
+      ]
+    },
+    {
+      "name": "workstation on the exclusion list",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "dcshadow", "Value": "ws02$", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": "2099-01-01"}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4742, "Computer": "dc01.contoso.local", "TargetUserName": "WS02$", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ServicePrincipalNames\">GC/ws02.contoso.local/contoso.local</Data>"}
+      ]
+    },
+    {
+      "name": "exclusion past its expiry date no longer applies",
+      "expect": "fire",
+      "assert": {"TargetAccount": "ws02$"},
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "dcshadow", "Value": "ws02$", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": "2020-01-01"}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4742, "Computer": "dc01.contoso.local", "TargetUserName": "WS02$", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ServicePrincipalNames\">GC/ws02.contoso.local/contoso.local</Data>"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+id: 796b104e-afe8-494e-80da-520df72911fb
+name: DCShadow - domain controller SPN registered on a non-DC computer account
+description: |
+  Detects a Global Catalog (GC/) or directory replication (DRSUAPI) service principal name being
+  added to or removed from a computer account that is not a listed domain controller (4742 or
+  5136). DCShadow registers these SPNs so a rogue host can push changes into Active Directory
+  through replication, then removes them. This is the pattern of Mimikatz lsadump::dcshadow.
+  Legitimate on real domain controllers, which come from the ADDomainControllers watchlist.
+severity: High
+requiredDataConnectors:
+  - connectorId: WindowsSecurityEvents
+    dataTypes:
+      - SecurityEvent
+  - connectorId: SecurityEvents
+    dataTypes:
+      - SecurityEvent
+queryFrequency: 15m
+queryPeriod: 20m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+relevantTechniques:
+  - T1207
+query: |
+  // Computer account of every domain controller, from the ADDomainControllers watchlist.
+  let domain_controllers = _GetWatchlist("ADDomainControllers") | project Account = tolower(SearchKey);
+  // Exclusions live in the ADDetectionExclusions watchlist. A row stops applying after its ExpiresOn date.
+  let excluded_targets = _GetWatchlist("ADDetectionExclusions")
+      | where column_ifexists("Detection", "") == "dcshadow"
+      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) > now()
+      | project Value = tolower(SearchKey);
+  // GC/ is the Global Catalog SPN prefix. E3514235-4B06-11D1-AB04-00C04FC2DCD2 is the directory
+  // replication (DRSUAPI) RPC interface. Only domain controllers should carry either.
+  let gc_spn = "GC/";
+  let drsuapi_spn = "E3514235-4B06-11D1-AB04-00C04FC2DCD2/";
+  SecurityEvent
+  | where EventID in (4742, 5136)
+  // None of these fields are typed columns in SecurityEvent, so they are read from the raw event XML.
+  | extend
+      ChangedSpns = extract(@'"ServicePrincipalNames">([^<]*)<', 1, EventData),
+      AttributeName = extract(@'"AttributeLDAPDisplayName">([^<]*)<', 1, EventData),
+      AttributeValue = extract(@'"AttributeValue">([^<]*)<', 1, EventData),
+      ObjectDN = extract(@'"ObjectDN">([^<]*)<', 1, EventData),
+      RawTarget = iff(isnotempty(TargetUserName), TargetUserName, extract(@'"TargetUserName">([^<]*)<', 1, EventData)),
+      RawActor = iff(isnotempty(SubjectUserName), SubjectUserName, extract(@'"SubjectUserName">([^<]*)<', 1, EventData))
+  // 4742 lists the changed SPNs. 5136 carries one attribute value per event.
+  | extend Spn = iff(EventID == 4742, ChangedSpns, iff(AttributeName =~ "servicePrincipalName", AttributeValue, ""))
+  | where Spn contains gc_spn or Spn contains drsuapi_spn
+  // 4742 names the computer account directly. 5136 names the object, so the account is its CN plus $.
+  | extend TargetAccount = tolower(iff(EventID == 4742, RawTarget, strcat(extract(@"^CN=([^,]+)", 1, ObjectDN), "$")))
+  | where TargetAccount !in (domain_controllers)
+  | where TargetAccount !in (excluded_targets)
+  | extend Actor = tolower(RawActor)
+  | summarize
+      StartTime = min(TimeGenerated),
+      EndTime = max(TimeGenerated),
+      Changes = count(),
+      Spns = make_set(Spn, 20),
+      EventIds = make_set(EventID),
+      Actor = take_any(Actor),
+      DomainControllers = make_set(Computer, 20),
+      Computer = take_any(Computer)
+      // Grouped across domain controllers, so one rogue registration is one alert.
+      by TargetAccount
+  | extend TargetHost = trim_end(@"\$", TargetAccount)
+  | project StartTime, EndTime, Computer, DomainControllers, TargetAccount, TargetHost, Actor, Changes, EventIds, Spns
+entityMappings:
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: TargetHost
+  - entityType: Account
+    fieldMappings:
+      - identifier: Name
+        columnName: Actor
+customDetails:
+  Changes: Changes
+alertDetailsOverride:
+  alertDisplayNameFormat: "Domain controller SPN registered on non-DC account {{TargetAccount}}"
+eventGroupingSettings:
+  aggregationKind: AlertPerResult
+version: 1.0.0
+kind: Scheduled

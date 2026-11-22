@@ -1,0 +1,37 @@
+id: df47a1b1-798d-4b48-a06f-ffae0e7f9a3b
+name: All changes to the AdminSDHolder object
+description: |
+  Lists every audited change to the AdminSDHolder object, any attribute and either operation, by
+  actor. Changes are rare enough that each one should be explained. Run over 90 days. Any actor
+  outside the directory administration team is the priority.
+requiredDataConnectors:
+  - connectorId: WindowsSecurityEvents
+    dataTypes:
+      - SecurityEvent
+  - connectorId: SecurityEvents
+    dataTypes:
+      - SecurityEvent
+tactics:
+  - Persistence
+  - PrivilegeEscalation
+relevantTechniques:
+  - T1098
+query: |
+  SecurityEvent
+  | where EventID == 5136
+  | extend
+      ObjectDN = extract(@'"ObjectDN">([^<]*)<', 1, EventData),
+      AttributeName = extract(@'"AttributeLDAPDisplayName">([^<]*)<', 1, EventData),
+      Operation = iff(isnotempty(OperationType), OperationType, extract(@'"OperationType">([^<]*)<', 1, EventData)),
+      RawActor = iff(isnotempty(SubjectUserName), SubjectUserName, extract(@'"SubjectUserName">([^<]*)<', 1, EventData))
+  | where ObjectDN startswith "CN=AdminSDHolder,CN=System,"
+  | summarize
+      FirstSeen = min(TimeGenerated),
+      LastSeen = max(TimeGenerated),
+      Changes = count(),
+      Attributes = make_set(AttributeName, 20),
+      Operations = make_set(Operation, 5)
+      by Actor = tolower(RawActor), ActorDomain = SubjectDomainName
+  | project FirstSeen, LastSeen, Actor, ActorDomain, Changes, Attributes, Operations
+  | order by LastSeen desc
+version: 1.0.0

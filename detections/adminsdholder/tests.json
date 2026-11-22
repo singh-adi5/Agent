@@ -1,0 +1,44 @@
+{
+  "cases": [
+    {
+      "name": "new security descriptor written to AdminSDHolder",
+      "expect": "fire",
+      "assert": {"Actor": "labadmin", "ActorDomain": "CONTOSO"},
+      "events": [
+        {"age_minutes": 5, "EventID": 5136, "Computer": "dc01.contoso.local", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ObjectDN\">CN=AdminSDHolder,CN=System,DC=contoso,DC=local</Data><Data Name=\"AttributeLDAPDisplayName\">nTSecurityDescriptor</Data><Data Name=\"AttributeValue\">O:DAG:DAD:PAI(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;S-1-5-21-1111111111-2222222222-3333333333-1104)</Data><Data Name=\"OperationType\">%%14674</Data>"}
+      ]
+    },
+    {
+      "name": "operation read from the typed column as resolved text",
+      "expect": "fire",
+      "assert": {"Actor": "labadmin"},
+      "events": [
+        {"age_minutes": 5, "EventID": 5136, "Computer": "dc01.contoso.local", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "OperationType": "Value Added", "EventData": "<Data Name=\"ObjectDN\">CN=AdminSDHolder,CN=System,DC=contoso,DC=local</Data><Data Name=\"AttributeLDAPDisplayName\">nTSecurityDescriptor</Data><Data Name=\"AttributeValue\">O:DAG:DAD:PAI(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;S-1-5-21-1111111111-2222222222-3333333333-1104)</Data>"}
+      ]
+    },
+    {
+      "name": "old descriptor half of the change only",
+      "expect": "silent",
+      "events": [
+        {"age_minutes": 5, "EventID": 5136, "Computer": "dc01.contoso.local", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ObjectDN\">CN=AdminSDHolder,CN=System,DC=contoso,DC=local</Data><Data Name=\"AttributeLDAPDisplayName\">nTSecurityDescriptor</Data><Data Name=\"AttributeValue\">O:DAG:DAD:PAI(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;S-1-5-21-1111111111-2222222222-3333333333-1104)</Data><Data Name=\"OperationType\">%%14675</Data>"}
+      ]
+    },
+    {
+      "name": "descriptor change on a different object",
+      "expect": "silent",
+      "events": [
+        {"age_minutes": 5, "EventID": 5136, "Computer": "dc01.contoso.local", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ObjectDN\">CN=Users,DC=contoso,DC=local</Data><Data Name=\"AttributeLDAPDisplayName\">nTSecurityDescriptor</Data><Data Name=\"AttributeValue\">O:DAG:DAD:PAI(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;S-1-5-21-1111111111-2222222222-3333333333-1104)</Data><Data Name=\"OperationType\">%%14674</Data>"}
+      ]
+    },
+    {
+      "name": "change by an actor on the exclusion list",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "adminsdholder", "Value": "labadmin", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": ""}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 5136, "Computer": "dc01.contoso.local", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "EventData": "<Data Name=\"ObjectDN\">CN=AdminSDHolder,CN=System,DC=contoso,DC=local</Data><Data Name=\"AttributeLDAPDisplayName\">nTSecurityDescriptor</Data><Data Name=\"AttributeValue\">O:DAG:DAD:PAI(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;S-1-5-21-1111111111-2222222222-3333333333-1104)</Data><Data Name=\"OperationType\">%%14674</Data>"}
+      ]
+    }
+  ]
+}

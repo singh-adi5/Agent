@@ -1,26 +1,27 @@
-#!/usr/bin/env python3
-"""Convert detections/*/rule.yaml into one ARM template of Sentinel scheduled rules.
+"""Build one ARM template holding every analytics rule in detections/*/analytic.yaml.
 
-Usage:
-    python deployment/yaml_to_arm.py > sentinel-rules.arm.json
+    python -m tools.build_arm -o build/sentinel-analytics.json
     az deployment group create -g <RESOURCE_GROUP> \
-        --template-file sentinel-rules.arm.json --parameters workspace=<WORKSPACE_NAME>
+        --template-file build/sentinel-analytics.json --parameters workspace=<WORKSPACE_NAME>
 
-The template takes the workspace name as its only parameter and holds no
-subscription, tenant or workspace identifiers.
+The template takes the workspace name as its only parameter and contains no
+subscription, tenant or workspace identifiers. Rules are created disabled.
 """
+
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
 from pathlib import Path
 
-import yaml
+from tools import catalog
 
 API_VERSION = "2023-02-01"
 OPERATORS = {"gt": "GreaterThan", "lt": "LessThan", "eq": "Equal", "ne": "NotEqual"}
 TIMESPAN = re.compile(r"^(\d+)([mhd])$")
+OPTIONAL_PROPERTIES = ("customDetails", "alertDetailsOverride", "eventGroupingSettings")
 
 
 def iso8601(value: str) -> str:
@@ -37,7 +38,7 @@ def to_resource(rule: dict) -> dict:
         "displayName": rule["name"],
         "description": " ".join(str(rule["description"]).split()),
         "severity": rule["severity"],
-        # Rules are created disabled. Enable each one after tuning its allow-lists.
+        # Enable each rule after its allow-lists are set for the environment.
         "enabled": False,
         "query": rule["query"],
         "queryFrequency": iso8601(rule["queryFrequency"]),
@@ -47,13 +48,13 @@ def to_resource(rule: dict) -> dict:
         "suppressionDuration": "PT5H",
         "suppressionEnabled": False,
         "tactics": rule["tactics"],
-        # This API version takes parent technique ids. The sub-technique stays in the description.
+        # This API version takes parent technique ids only.
         "techniques": sorted({t.split(".")[0] for t in rule["relevantTechniques"]}),
         "entityMappings": rule["entityMappings"],
         "incidentConfiguration": {
             "createIncident": True,
-            # Runs overlap on purpose so no event is skipped. Grouping folds the
-            # repeat alerts for the same entities into one incident.
+            # Scheduled runs overlap so no event is skipped. Grouping on matching
+            # entities folds the repeat alert into the open incident.
             "groupingConfiguration": {
                 "enabled": True,
                 "reopenClosedIncident": False,
@@ -65,9 +66,9 @@ def to_resource(rule: dict) -> dict:
             },
         },
     }
-    for optional in ("customDetails", "eventGroupingSettings"):
-        if rule.get(optional):
-            properties[optional] = rule[optional]
+    for name in OPTIONAL_PROPERTIES:
+        if rule.get(name):
+            properties[name] = rule[name]
     return {
         "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
         "apiVersion": API_VERSION,
@@ -77,24 +78,38 @@ def to_resource(rule: dict) -> dict:
     }
 
 
-def build_template(root: Path) -> dict:
-    rule_paths = sorted((root / "detections").glob("*/rule.yaml"))
-    if not rule_paths:
-        raise SystemExit(f"no rule.yaml files found under {root / 'detections'}")
+def build_template(root: Path = catalog.REPO_ROOT) -> dict:
+    paths = [d / catalog.ANALYTIC for d in catalog.detection_dirs(root)]
+    paths = [p for p in paths if p.is_file()]
+    if not paths:
+        raise SystemExit(f"no {catalog.ANALYTIC} files under {root / 'detections'}")
     return {
         "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
         "contentVersion": "1.0.0.0",
         "parameters": {
             "workspace": {
                 "type": "string",
-                "metadata": {"description": "Name of the Log Analytics workspace that has Sentinel enabled."},
+                "metadata": {"description": "Log Analytics workspace with Sentinel enabled."},
             }
         },
-        "resources": [to_resource(yaml.safe_load(p.read_text(encoding="utf-8"))) for p in rule_paths],
+        "resources": [to_resource(catalog.load_yaml(p)) for p in paths],
     }
 
 
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("-o", "--output", type=Path, help="write here instead of stdout")
+    args = parser.parse_args(argv)
+
+    text = json.dumps(build_template(), indent=2) + "\n"
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(text, encoding="utf-8")
+        print(f"wrote {args.output}")
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
 if __name__ == "__main__":
-    repo_root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
-    json.dump(build_template(repo_root), sys.stdout, indent=2)
-    sys.stdout.write("\n")
+    sys.exit(main())

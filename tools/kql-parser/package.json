@@ -1,0 +1,13 @@
+{
+  "name": "kql-parser-check",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Parses the detection queries with Microsoft's Kusto language service.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@kusto/language-service-next": "12.4.1"
+  }
+}

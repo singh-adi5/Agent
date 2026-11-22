@@ -11,12 +11,15 @@ import yaml
 from tools import catalog, lint
 
 ROOT = catalog.REPO_ROOT
-EXPECTED_TECHNIQUES = {
-    "asrep-roasting": "T1558.004",
-    "dcsync": "T1003.006",
-    "golden-ticket": "T1558.001",
-    "kerberoasting": "T1558.003",
-    "password-spraying": "T1110.003",
+# Technique and Sentinel tactics per detection, checked against the ATT&CK dataset.
+EXPECTED = {
+    "adminsdholder": ("T1098", ["Persistence", "PrivilegeEscalation"]),
+    "asrep-roasting": ("T1558.004", ["CredentialAccess"]),
+    "dcshadow": ("T1207", ["DefenseEvasion"]),
+    "dcsync": ("T1003.006", ["CredentialAccess"]),
+    "golden-ticket": ("T1558.001", ["CredentialAccess"]),
+    "kerberoasting": ("T1558.003", ["CredentialAccess"]),
+    "password-spraying": ("T1110.003", ["CredentialAccess"]),
 }
 
 
@@ -26,13 +29,19 @@ class RepositoryContent(unittest.TestCase):
         self.assertEqual(failures, {})
 
     def test_each_detection_maps_to_its_technique(self):
-        self.assertEqual({d.name for d in catalog.detection_dirs()}, set(EXPECTED_TECHNIQUES))
-        for name, technique in EXPECTED_TECHNIQUES.items():
+        self.assertEqual({d.name for d in catalog.detection_dirs()}, set(EXPECTED))
+        for name, (technique, tactics) in EXPECTED.items():
             for filename in (catalog.ANALYTIC, catalog.HUNTING):
                 document = catalog.load_yaml(ROOT / "detections" / name / filename)
                 with self.subTest(file=f"{name}/{filename}"):
                     self.assertEqual(document["relevantTechniques"], [technique])
-                    self.assertEqual(document["tactics"], ["CredentialAccess"])
+                    self.assertEqual(document["tactics"], tactics)
+
+    def test_no_allow_list_is_hard_coded_in_a_query(self):
+        for folder in catalog.detection_dirs():
+            query = catalog.load_yaml(folder / catalog.ANALYTIC)["query"]
+            with self.subTest(detection=folder.name):
+                self.assertNotIn("dynamic([", query)
 
 
 class BrokenContent(unittest.TestCase):
@@ -96,6 +105,14 @@ class BrokenContent(unittest.TestCase):
         errors = lint.lint_repository(self.root)["detections/kerberoasting/hunting.yaml"]
         self.assertTrue(any("id is also used by" in e for e in errors))
 
+    def test_unknown_watchlist_alias_fails(self):
+        rule = yaml.safe_load(self.analytic.read_text())
+        rule["query"] = rule["query"].replace("ADDetectionExclusions", "NoSuchList")
+        self.analytic.write_text(yaml.safe_dump(rule, sort_keys=False))
+        shutil.copytree(ROOT / "watchlists", self.root / "watchlists")
+        errors = lint.lint_repository(self.root)["detections/kerberoasting/analytic.yaml"]
+        self.assertIn("query reads unknown watchlist 'NoSuchList'", errors)
+
     def test_missing_file_fails(self):
         (self.folder / catalog.README).unlink()
         results = lint.lint_repository(self.root)
@@ -107,12 +124,47 @@ class BrokenContent(unittest.TestCase):
 
 class BrokenTests(unittest.TestCase):
     columns = {name for name, _ in catalog.load_schema()}
+    headers = {"ADDetectionExclusions": ["Detection", "Value", "Reason", "Owner", "ExpiresOn"]}
 
-    def lint_cases(self, cases):
+    def lint_cases(self, cases, produced=None):
         path = Path(tempfile.mkdtemp()) / "tests.json"
         self.addCleanup(shutil.rmtree, path.parent)
         path.write_text(json.dumps({"cases": cases}))
-        return lint.lint_tests(path, self.columns)
+        return lint.lint_tests(path, self.columns, self.headers, produced)
+
+    def test_assert_on_a_column_the_rule_does_not_output_fails(self):
+        cases = [
+            {"name": "a", "expect": "fire", "assert": {"Nope": 1}, "events": [{"EventID": 1}]},
+            {"name": "b", "expect": "silent", "events": [{"EventID": 1}]},
+        ]
+        self.assertEqual(
+            self.lint_cases(cases, produced={"Requester"}),
+            ["a: assert uses non-output column(s) Nope"],
+        )
+
+    def test_assert_on_a_silent_case_fails(self):
+        cases = [
+            {"name": "a", "expect": "fire", "events": [{"EventID": 1}]},
+            {"name": "b", "expect": "silent", "assert": {"X": 1}, "events": [{"EventID": 1}]},
+        ]
+        self.assertEqual(
+            self.lint_cases(cases), ["b: assert must be a non-empty object on a 'fire' case"]
+        )
+
+    def test_watchlist_rows_must_match_a_known_watchlist(self):
+        cases = [
+            {
+                "name": "a",
+                "expect": "fire",
+                "watchlist": [{"alias": "Nope"}, {"alias": "ADDetectionExclusions", "Colour": "x"}],
+                "events": [{"EventID": 1}],
+            },
+            {"name": "b", "expect": "silent", "events": [{"EventID": 1}]},
+        ]
+        self.assertEqual(
+            self.lint_cases(cases),
+            ["a: unknown watchlist 'Nope'", "a: ADDetectionExclusions has no column(s) Colour"],
+        )
 
     def test_misspelt_column_fails(self):
         cases = [
@@ -128,3 +180,38 @@ class BrokenTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Watchlists(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root)
+        shutil.copytree(ROOT / "watchlists", self.root / "watchlists")
+        self.exclusions = self.root / "watchlists" / "ADDetectionExclusions.csv"
+
+    def lint_with_row(self, row):
+        self.exclusions.write_text("Detection,Value,Reason,Owner,ExpiresOn\n" + row + "\n")
+        names = {d.name for d in catalog.detection_dirs()}
+        return lint.lint_watchlists(self.root, names)["watchlists/ADDetectionExclusions.csv"]
+
+    def test_repository_watchlists_pass(self):
+        names = {d.name for d in catalog.detection_dirs()}
+        self.assertEqual({k: v for k, v in lint.lint_watchlists(ROOT, names).items() if v}, {})
+
+    def test_valid_exclusion_passes(self):
+        self.assertEqual(self.lint_with_row("dcsync,msol_abc,sync,identity,2027-01-31"), [])
+
+    def test_unknown_detection_fails(self):
+        self.assertEqual(
+            self.lint_with_row("dcsink,msol_abc,sync,identity,"),
+            ["line 2: unknown detection 'dcsink'"],
+        )
+
+    def test_bad_expiry_date_fails(self):
+        self.assertEqual(
+            self.lint_with_row("dcsync,msol_abc,sync,identity,31/01/2027"),
+            ["line 2: ExpiresOn must be YYYY-MM-DD"],
+        )
+
+    def test_empty_search_key_fails(self):
+        self.assertEqual(self.lint_with_row("dcsync,,sync,identity,"), ["line 2: empty Value"])

@@ -3,6 +3,7 @@
     {
       "name": "service ticket used with no preceding TGT request",
       "expect": "fire",
+      "assert": {"AccountName": "labadmin", "SourceIp": "10.10.1.10"},
       "events": [
         {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "cifs/dc01", "TargetUserName": "labadmin@CONTOSO.LOCAL", "IpAddress": "10.10.1.10"}
       ]
@@ -12,7 +13,25 @@
       "expect": "silent",
       "events": [
         {"age_minutes": 30, "EventID": 4768, "Status": "0x0", "TargetUserName": "alice.lab", "IpAddress": "10.10.1.20"},
-        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "cifs/dc01", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.20"}
+        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "cifs/dc01", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "::ffff:10.10.1.20"}
+      ]
+    },
+    {
+      "name": "a renewal (4770) counts as a TGT on record",
+      "expect": "silent",
+      "events": [
+        {"age_minutes": 300, "EventID": 4770, "Status": "0x0", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "::ffff:10.10.1.20"},
+        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "cifs/dc01", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "::ffff:10.10.1.20"}
+      ]
+    },
+    {
+      "name": "roaming account on the exclusion list",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "golden-ticket", "Value": "bob.lab", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": "2099-01-01"}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "cifs/dc01", "TargetUserName": "bob.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.40"}
       ]
     }
   ]

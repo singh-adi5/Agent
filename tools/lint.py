@@ -9,12 +9,15 @@ language service (tools/kql-parser) and query behaviour by the emulator tests
 
 from __future__ import annotations
 
+import csv
+import io
 import re
 import sys
 import uuid
+from datetime import date
 from pathlib import Path
 
-from tools import catalog
+from tools import catalog, watchlists
 from tools.kql import output_columns, placeholders
 
 ANALYTIC_FIELDS = (
@@ -199,8 +202,15 @@ def lint_hunting(path: Path) -> list[str]:
     return _check_common(hunt, HUNTING_FIELDS)
 
 
-def lint_tests(path: Path, columns: set[str]) -> list[str]:
-    """Each fixture needs a case that fires, a case that stays silent, and real column names."""
+def lint_tests(
+    path: Path,
+    columns: set[str],
+    watchlist_headers: dict[str, list[str]] | None = None,
+    produced: set[str] | None = None,
+) -> list[str]:
+    """Fixture rules: a fire and a silent case, real column names, known watchlists,
+    and assertions only on columns the analytic query outputs."""
+    watchlist_headers = watchlist_headers or {}
     try:
         cases = catalog.load_cases(path)
     except Exception as exc:  # any parse failure is a lint failure, never a crash
@@ -227,45 +237,124 @@ def lint_tests(path: Path, columns: set[str]) -> list[str]:
             unknown = sorted(set(event) - columns - {AGE_KEY})
             if unknown:
                 errors.append(f"{label}: unknown column(s) {', '.join(unknown)}")
+
+        for item in case.get("watchlist", []):
+            alias = item.get("alias") if isinstance(item, dict) else None
+            if alias not in watchlist_headers:
+                errors.append(f"{label}: unknown watchlist '{alias}'")
+                continue
+            extra = sorted(set(item) - {"alias"} - set(watchlist_headers[alias]))
+            if extra:
+                errors.append(f"{label}: {alias} has no column(s) {', '.join(extra)}")
+
+        expected = case.get("assert")
+        if expected is not None:
+            if case["expect"] != "fire" or not isinstance(expected, dict) or not expected:
+                errors.append(f"{label}: assert must be a non-empty object on a 'fire' case")
+            elif produced is not None:
+                missing = sorted(set(expected) - produced)
+                if missing:
+                    errors.append(f"{label}: assert uses non-output column(s) {', '.join(missing)}")
     errors += [
         f"needs at least one '{e}' case" for e in ("fire", "silent") if e not in expectations
     ]
     return errors
 
 
+def lint_watchlists(root: Path, detection_names: set[str]) -> dict[str, list[str]]:
+    """Watchlist index and CSV files. Returns problems per file."""
+    folder = watchlists.watchlist_dir(root)
+    index = folder / watchlists.INDEX_FILE
+    label = str(index.relative_to(root))
+    if not index.is_file():
+        return {label: ["missing watchlist index"]}
+    try:
+        entries = catalog.load_yaml(index)
+    except Exception as exc:  # any parse failure is a lint failure, never a crash
+        return {label: [f"not valid YAML: {exc}"]}
+    if not isinstance(entries, list) or not entries:
+        return {label: ["must be a non-empty list of watchlists"]}
+
+    results: dict[str, list[str]] = {label: []}
+    aliases = set()
+    for entry in entries:
+        if not isinstance(entry, dict) or any(not entry.get(f) for f in watchlists.INDEX_FIELDS):
+            results[label].append(f"each entry needs {', '.join(watchlists.INDEX_FIELDS)}")
+            continue
+        if entry["alias"] in aliases:
+            results[label].append(f"alias '{entry['alias']}' is listed twice")
+        aliases.add(entry["alias"])
+
+        csv_path = folder / entry["file"]
+        csv_label = str(csv_path.relative_to(root))
+        if not csv_path.is_file():
+            results[label].append(f"{entry['alias']}: file {entry['file']} not found")
+            continue
+        reader = csv.DictReader(io.StringIO(csv_path.read_text(encoding="utf-8")))
+        rows = list(reader)
+        header = reader.fieldnames or []
+        errors = []
+        key = entry["itemsSearchKey"]
+        if key not in header:
+            errors.append(f"itemsSearchKey '{key}' is not a column")
+        for number, row in enumerate(rows, start=2):
+            if not (row.get(key) or "").strip():
+                errors.append(f"line {number}: empty {key}")
+            detection = (row.get("Detection") or "").strip()
+            if "Detection" in header and detection not in detection_names:
+                errors.append(f"line {number}: unknown detection '{detection}'")
+            expires = (row.get("ExpiresOn") or "").strip()
+            if expires:
+                try:
+                    date.fromisoformat(expires)
+                except ValueError:
+                    errors.append(f"line {number}: ExpiresOn must be YYYY-MM-DD")
+        results[csv_label] = errors
+    return results
+
+
 def lint_repository(root: Path = catalog.REPO_ROOT) -> dict[str, list[str]]:
     """Problems per file, relative to `root`. A file with an empty list passed."""
     columns = {name for name, _ in catalog.load_schema()}
-    results: dict[str, list[str]] = {}
-    seen_ids: dict[str, str] = {}
-
     folders = catalog.detection_dirs(root)
     if not folders:
         return {"detections/": ["no detection folders found"]}
+
+    results = lint_watchlists(root, {f.name for f in folders})
+    try:
+        headers = {w.alias: w.read()[0] for w in watchlists.load(root) if w.path.is_file()}
+    except Exception:  # reported by lint_watchlists
+        headers = {}
+    seen_ids: dict[str, str] = {}
 
     for folder in folders:
         missing = [name for name in catalog.REQUIRED_FILES if not (folder / name).is_file()]
         if missing:
             results[str(folder.relative_to(root))] = [f"missing {name}" for name in missing]
 
-        checks = (
-            (catalog.ANALYTIC, lint_analytic),
-            (catalog.HUNTING, lint_hunting),
-            (catalog.TESTS, lambda p: lint_tests(p, columns)),
-        )
-        for filename, check in checks:
+        produced = None
+        for filename, check in ((catalog.ANALYTIC, lint_analytic), (catalog.HUNTING, lint_hunting)):
             path = folder / filename
             if not path.is_file():
                 continue
             label = str(path.relative_to(root))
             errors = check(path)
-            if filename != catalog.TESTS:
-                document, _ = _load_mapping(path)
-                content_id = str(document.get("id")) if document else ""
-                if content_id and content_id in seen_ids:
+            document, _ = _load_mapping(path)
+            if document:
+                query = document.get("query") if isinstance(document.get("query"), str) else ""
+                unknown = sorted(watchlists.referenced_aliases(query) - set(headers))
+                errors += [f"query reads unknown watchlist '{a}'" for a in unknown]
+                if filename == catalog.ANALYTIC:
+                    produced = output_columns(query)
+                content_id = str(document.get("id"))
+                if content_id in seen_ids:
                     errors.append(f"id is also used by {seen_ids[content_id]}")
                 seen_ids.setdefault(content_id, label)
             results[label] = errors
+
+        tests = folder / catalog.TESTS
+        if tests.is_file():
+            results[str(tests.relative_to(root))] = lint_tests(tests, columns, headers, produced)
     return results
 
 

@@ -3,6 +3,7 @@
     {
       "name": "one user pulls RC4 tickets for three SPNs",
       "expect": "fire",
+      "assert": {"Requester": "alice.lab", "SpnCount": 3},
       "events": [
         {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-sql", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
         {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-web", "TargetUserName": "alice.lab@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
@@ -33,6 +34,31 @@
         {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-sql", "TargetUserName": "WS01$@CONTOSO.LOCAL", "IpAddress": "10.10.1.50", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
         {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-web", "TargetUserName": "WS01$@CONTOSO.LOCAL", "IpAddress": "10.10.1.50", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
         {"age_minutes": 4, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-backup", "TargetUserName": "WS01$@CONTOSO.LOCAL", "IpAddress": "10.10.1.50", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"}
+      ]
+    },
+    {
+      "name": "requester on the exclusion list",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "kerberoasting", "Value": "svc-scanner", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": "2099-01-01"}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-sql", "TargetUserName": "svc-scanner@CONTOSO.LOCAL", "IpAddress": "10.10.1.30", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
+        {"age_minutes": 4, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-web", "TargetUserName": "svc-scanner@CONTOSO.LOCAL", "IpAddress": "10.10.1.30", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
+        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-backup", "TargetUserName": "svc-scanner@CONTOSO.LOCAL", "IpAddress": "10.10.1.30", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"}
+      ]
+    },
+    {
+      "name": "exclusion past its expiry date no longer applies",
+      "expect": "fire",
+      "assert": {"Requester": "svc-scanner"},
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "kerberoasting", "Value": "svc-scanner", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": "2020-01-01"}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-sql", "TargetUserName": "svc-scanner@CONTOSO.LOCAL", "IpAddress": "10.10.1.30", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
+        {"age_minutes": 4, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-web", "TargetUserName": "svc-scanner@CONTOSO.LOCAL", "IpAddress": "10.10.1.30", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"},
+        {"age_minutes": 5, "EventID": 4769, "Status": "0x0", "ServiceName": "svc-backup", "TargetUserName": "svc-scanner@CONTOSO.LOCAL", "IpAddress": "10.10.1.30", "EventData": "<Data Name=\"TicketEncryptionType\">0x17</Data>"}
       ]
     }
   ]

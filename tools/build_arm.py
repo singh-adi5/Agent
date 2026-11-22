@@ -17,7 +17,7 @@ import re
 import sys
 from pathlib import Path
 
-from tools import catalog, watchlists
+from tools import arm, catalog, watchlists
 
 API_VERSION = "2023-02-01"
 OPERATORS = {"gt": "GreaterThan", "lt": "LessThan", "eq": "Equal", "ne": "NotEqual"}
@@ -35,6 +35,10 @@ def iso8601(value: str) -> str:
 
 
 def to_resource(rule: dict) -> dict:
+    # Content is escaped first; the expressions this module adds itself are set after.
+    rule = arm.literal(rule)
+    if not arm.ALIAS.match(str(rule["id"])):
+        raise ValueError(f"rule id '{rule['id']}' cannot be used in a resource name")
     properties = {
         "displayName": rule["name"],
         "description": " ".join(str(rule["description"]).split()),

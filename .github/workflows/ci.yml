@@ -10,9 +10,11 @@ on:
 permissions:
   contents: read
 
+# Superseded pull request runs are cancelled. Runs on main are queued instead, so a new
+# push never cancels a deployment part-way through.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -56,12 +58,13 @@ jobs:
   deploy:
     name: deploy to Sentinel
     needs: [check, emulator]
-    # Runs on main only, and is skipped until the Azure variables in
-    # docs/deployment.md are set on the repository or the sentinel environment.
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.AZURE_CLIENT_ID != ''
+    # Off until the repository variable SENTINEL_DEPLOY is set to true. It must be a
+    # repository variable: environment variables are not available when a job's `if` is
+    # evaluated. Restricting the sentinel environment to the main branch enforces the
+    # branch rule outside this file as well (docs/deployment.md).
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.SENTINEL_DEPLOY == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # Add required reviewers to this environment to put a manual approval in front of production.
     environment: sentinel
     concurrency:
       group: deploy-sentinel
@@ -69,14 +72,27 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC token exchanged for a short-lived Azure token; no stored credential
-    env:
-      RESOURCE_GROUP: ${{ vars.SENTINEL_RESOURCE_GROUP }}
-      WORKSPACE: ${{ vars.SENTINEL_WORKSPACE }}
-      ENABLE_RULES: ${{ vars.SENTINEL_ENABLE_RULES == 'true' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - name: Check deployment settings
+        # Environment variables are read here, inside a step, where they are available.
+        env:
+          RESOURCE_GROUP: ${{ vars.SENTINEL_RESOURCE_GROUP }}
+          WORKSPACE: ${{ vars.SENTINEL_WORKSPACE }}
+          ENABLE_RULES: ${{ vars.SENTINEL_ENABLE_RULES }}
+        run: |
+          [[ "$RESOURCE_GROUP" =~ ^[-A-Za-z0-9_.()]{1,90}$ ]] || { echo "::error::SENTINEL_RESOURCE_GROUP is missing or invalid"; exit 1; }
+          [[ "$WORKSPACE" =~ ^[-A-Za-z0-9]{4,63}$ ]] || { echo "::error::SENTINEL_WORKSPACE is missing or invalid"; exit 1; }
+          # Anything other than an explicit true or false stops the job, so an unset or
+          # mistyped value cannot redeploy every rule disabled.
+          [[ "$ENABLE_RULES" == "true" || "$ENABLE_RULES" == "false" ]] || { echo "::error::SENTINEL_ENABLE_RULES must be exactly true or false"; exit 1; }
+          {
+            echo "RESOURCE_GROUP=$RESOURCE_GROUP"
+            echo "WORKSPACE=$WORKSPACE"
+            echo "ENABLE_RULES=$ENABLE_RULES"
+          } >> "$GITHUB_ENV"
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
@@ -87,6 +103,8 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      # Recorded in the job log before the change is applied. It is not an approval
+      # gate: environment approval happens before the job starts.
       - name: Preview changes
         run: >
           az deployment group what-if

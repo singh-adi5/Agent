@@ -17,7 +17,7 @@ import uuid
 from datetime import date
 from pathlib import Path
 
-from tools import catalog, watchlists
+from tools import arm, catalog, watchlists
 from tools.kql import output_columns, placeholders
 
 ANALYTIC_FIELDS = (
@@ -281,6 +281,8 @@ def lint_watchlists(root: Path, detection_names: set[str]) -> dict[str, list[str
         if not isinstance(entry, dict) or any(not entry.get(f) for f in watchlists.INDEX_FIELDS):
             results[label].append(f"each entry needs {', '.join(watchlists.INDEX_FIELDS)}")
             continue
+        if not arm.ALIAS.match(str(entry["alias"])):
+            results[label].append(f"alias '{entry['alias']}' must match {arm.ALIAS.pattern}")
         if entry["alias"] in aliases:
             results[label].append(f"alias '{entry['alias']}' is listed twice")
         aliases.add(entry["alias"])

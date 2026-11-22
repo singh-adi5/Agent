@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from tools import catalog
+from tools import arm, catalog
 from tools.kql import string_literal
 
 INDEX_FILE = "watchlists.yaml"
@@ -111,18 +111,22 @@ def stub(watchlists: list[Watchlist], extra_items: list[dict] | None = None) -> 
 
 def to_resource(watchlist: Watchlist) -> dict:
     """ARM resource for one watchlist, in the 2023-02-01 Microsoft.SecurityInsights schema."""
+    if not arm.ALIAS.match(watchlist.alias):
+        raise ValueError(f"watchlist alias '{watchlist.alias}' cannot be used in a resource name")
     return {
         "type": "Microsoft.OperationalInsights/workspaces/providers/Watchlists",
         "apiVersion": "2023-02-01",
         "name": f"[concat(parameters('workspace'), '{PROVIDER}/{watchlist.alias}')]",
-        "properties": {
-            "displayName": watchlist.display_name,
-            "description": watchlist.description,
-            "provider": "Custom",
-            "source": "Local file",
-            "itemsSearchKey": watchlist.search_key,
-            "contentType": "text/csv",
-            "numberOfLinesToSkip": 0,
-            "rawContent": watchlist.raw_content(),
-        },
+        "properties": arm.literal(
+            {
+                "displayName": watchlist.display_name,
+                "description": watchlist.description,
+                "provider": "Custom",
+                "source": "Local file",
+                "itemsSearchKey": watchlist.search_key,
+                "contentType": "text/csv",
+                "numberOfLinesToSkip": 0,
+                "rawContent": watchlist.raw_content(),
+            }
+        ),
     }

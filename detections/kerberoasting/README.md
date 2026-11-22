@@ -3,69 +3,93 @@
 | | |
 |---|---|
 | ATT&CK | [T1558.003](https://attack.mitre.org/techniques/T1558/003/) Steal or Forge Kerberos Tickets: Kerberoasting |
-| Tactic | Credential Access |
-| Data source | `SecurityEvent`, EventID 4769 |
-| Severity | Medium |
-| Files | [`query.kql`](query.kql), [`rule.yaml`](rule.yaml), [simulation](../../simulations/kerberoasting.md) |
+| Data | `SecurityEvent` 4769 from domain controllers |
+| Analytic rule | [analytic.yaml](analytic.yaml), Medium, runs hourly over 65 minutes |
+| Hunting query | [hunting.yaml](hunting.yaml) |
+| Tests | [tests.json](tests.json), 4 cases |
 
 ## Technique
 
-Any authenticated domain user can ask the KDC for a service ticket to any SPN. Part
-of that ticket is encrypted with a key derived from the service account's password.
-The attacker requests tickets for SPNs that belong to user accounts, takes them
-offline and cracks the password. Nothing is sent to the service itself, and the
-request is valid Kerberos, so there is no failure to alert on.
+Any authenticated user can request a service ticket for any SPN. Part of the ticket
+is encrypted with a key derived from the service account's password, so tickets for
+SPNs registered on user accounts can be taken offline and cracked. The request is
+valid Kerberos and succeeds, so there is no failure to alert on.
 
 ## Detection logic
 
-The domain controller logs one 4769 per service ticket. The query keeps a request when:
+Each service ticket issued writes 4769 on the DC. The rule keeps requests that:
 
-1. It succeeded (`Status` 0x0).
-2. The ticket was RC4 encrypted (`TicketEncryptionType` 0x17 or 0x18). `SecurityEvent`
-   has no column for this field, so the query reads it from the `EventData` XML. Roasting
-   tools ask for RC4 because it cracks far faster than AES. In a domain where
-   accounts support AES, a normal client gets AES tickets.
-3. The service is not a machine account (name ending `$`) and not `krbtgt`. Machine
-   account passwords are random and not worth cracking.
-4. The requester is not a machine account and is not asking for its own SPN.
+1. succeeded (`Status` 0x0);
+2. were RC4 encrypted (`TicketEncryptionType` 0x17 or 0x18). Roasting tools request
+   RC4 because it cracks far faster than AES. `SecurityEvent` has no typed column for
+   this field, so it is read from `EventData`;
+3. were for a service that is not a machine account or `krbtgt`;
+4. came from a user account asking for an SPN other than its own.
 
-It then counts distinct SPNs per requester and source address and fires at three or
-more inside the hour. One RC4 ticket is common. Several different SPNs from one
-account in one hour is an enumeration.
+It then counts distinct SPNs per requester and source address across all DCs, and
+alerts at three or more. One RC4 ticket is routine in most domains. Several
+different user-backed SPNs from one account in an hour is enumeration.
 
-## False positives and tuning
+The rule runs hourly over 65 minutes. The overlap covers the delay Sentinel applies
+to scheduled runs, so a burst split across a run boundary is still counted whole.
 
-- **Legacy services that only support RC4.** A user of three such services in an
-  hour looks the same as a roast. Fix the cause: set
-  `msDS-SupportedEncryptionTypes` to AES on the service accounts. Until then, raise
-  `spn_threshold`.
-- **Vulnerability scanners and AD assessment tools** that request tickets on
-  purpose. Add their account to `excluded_requesters`.
-- **`spn_threshold`** defaults to 3. A domain with many RC4-only services needs it
-  higher. A domain with none can drop it to 1, which turns any RC4 ticket for a
-  user-backed SPN into an alert.
+## Tuning
 
-## Known gaps
+- **RC4-only legacy services.** A user of three such services in an hour matches. Fix
+  the cause by setting `msDS-SupportedEncryptionTypes` to AES on those accounts, and
+  raise `spn_threshold` until that is done.
+- **Scanners and AD assessment tools** that request tickets by design. Add their
+  accounts to `excluded_requesters`.
+- **`spn_threshold`** defaults to 3. In a domain with no RC4-only services it can drop
+  to 1, which alerts on any RC4 ticket for a user-backed SPN.
 
-- **AES roasting.** `Rubeus kerberoast /aes` and similar options request AES
-  tickets. This rule does not see them. Catching that needs a volume baseline per
-  account rather than an encryption-type filter.
-- **Slow roasting.** One SPN an hour stays under the threshold.
-- **A honeypot SPN is a stronger signal.** A service account that nothing uses,
-  with an SPN and a long random password, should never receive a ticket request.
-  Alerting on any 4769 for it has almost no false positives. That is an environment
-  change, so it is not part of this rule.
+## Coverage gaps
+
+- AES roasting (for example `Rubeus kerberoast /aes`) is not matched by the RC4 filter.
+  Catching it needs a per-account volume baseline instead.
+- One SPN per hour stays under the threshold. The hunting query covers this.
+- A honeypot SPN (an unused account with an SPN and a long random password) gives a
+  near-zero false positive signal on any 4769. That is an environment change, so it
+  is not part of this rule.
+
+## Hunting query
+
+Lists every account that received RC4 tickets for user-backed SPNs, ranked by
+distinct SPNs, with no threshold. Run it over 7 to 30 days to find slow roasting and
+to list the RC4-only services behind false positives.
+
+## Validation
+
+**Emulator.** [tests.json](tests.json) covers one true positive (three RC4 SPNs from
+one user) and three cases that must stay silent: AES tickets, two SPNs only, and a
+computer account.
+
+**Lab.** Requires the three SPN accounts from [lab setup](../../docs/lab-setup.md#6-create-lab-accounts),
+requested as the low-privilege user `alice.lab`. Telemetry can be generated with
+Impacket `GetUserSPNs.py` ([fortra/impacket](https://github.com/fortra/impacket)),
+Rubeus `kerberoast` ([GhostPack/Rubeus](https://github.com/GhostPack/Rubeus)) or
+[Atomic Red Team T1558.003](https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1558.003/T1558.003.md).
+Expected on DC01, one 4769 per SPN:
+
+| Field | Value |
+|---|---|
+| `TicketEncryptionType` (in `EventData`) | `0x17` |
+| `Status` | `0x0` |
+| `ServiceName` | `svc-sql`, `svc-web`, `svc-backup` |
+| `TargetUserName` | `alice.lab@CONTOSO.LOCAL` |
+
+The rule should return one row for `alice.lab` with `SpnCount` 3. See
+[simulation](../../docs/simulation.md) for scope and evidence capture.
 
 ## Response
 
 1. Identify the requester and source address from the alert entities.
-2. List the SPNs in `Services`. Treat each of those service account passwords as exposed.
-3. Reset those passwords to long random values, or move the accounts to group
-   managed service accounts.
-4. Investigate how the requesting account was compromised.
+2. Treat the password of every account in `Services` as exposed. Rotate to long random
+   values or move the accounts to group managed service accounts.
+3. Investigate how the requesting account was compromised.
 
 ## Mitigations
 
 - M1027 Password Policies: 25+ character random passwords on service accounts, or gMSA.
 - M1041 Encrypt Sensitive Information: enforce AES and disable RC4 for Kerberos.
-- M1026 Privileged Account Management: service accounts hold no more rights than the service needs.
+- M1026 Privileged Account Management: service accounts hold only the rights the service needs.

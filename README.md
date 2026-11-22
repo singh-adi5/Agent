@@ -118,6 +118,9 @@ What was learned building it is in [docs/engineering-notes.md](docs/engineering-
   covered: the Security log alone does not show them reliably.
 - Known evasions are listed per technique, including AES Kerberoasting, silver and
   diamond tickets, distributed password sprays and DCSync from a genuine DC account.
+- Built for a single domain. Watchlist entries and exclusions match account names
+  without the domain, so in a multi-domain forest a same-named account in another
+  domain would match them.
 
 ## Standards
 

@@ -36,8 +36,10 @@ YAML and description).
 3. `make check` passes.
 
 Watchlists can be managed in the repository (deployed with the rules) or in the
-Sentinel portal, not both. How a redeploy treats items added in the portal has not been
-verified, so pick one.
+Sentinel portal, not both. Deployments are incremental: a watchlist or row removed from
+the repository is not guaranteed to be removed from Sentinel, and how a redeploy treats
+items added in the portal has not been verified. Revoke an exclusion by setting its
+`ExpiresOn` to a past date, not by deleting the row.
 
 ## Manual deployment
 

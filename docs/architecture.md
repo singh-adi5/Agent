@@ -83,11 +83,15 @@ Lists that change with the environment live in two Sentinel watchlists, read wit
 
 | Watchlist | Search key | Holds |
 |---|---|---|
-| `ADDomainControllers` | `SamAccountName` | Computer account of every DC |
+| `ADDomainControllers` | `SamAccountName` | Computer account, host name and distinguished name of every DC |
 | `ADDetectionExclusions` | `Value` | Per-detection exclusions with `Reason`, `Owner` and an optional `ExpiresOn` |
 
-An exclusion stops applying after its `ExpiresOn` date, so a temporary exception does
-not become permanent by default. The source CSV files are in
+An exclusion applies through its `ExpiresOn` date (UTC) and not after, so a temporary
+exception does not become permanent by default. To revoke an exclusion early, set its
+`ExpiresOn` to a past date rather than deleting the row: deployments are incremental,
+so a row deleted from the CSV is not guaranteed to leave Sentinel, while an expired row
+stops applying wherever it is. `DistinguishedName` values use `;` between components,
+because whether Sentinel's CSV import honours quoted commas has not been verified. The source CSV files are in
 [watchlists/](../watchlists/) and the linter checks them: every `Detection` value must
 name a detection folder and every date must parse. Queries read CSV columns through
 `column_ifexists()`, as Microsoft's own content does, so a missing or empty watchlist

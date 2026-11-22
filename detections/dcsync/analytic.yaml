@@ -29,10 +29,10 @@ query: |
   let detection_window = 20m;
   // Computer account of every domain controller, from the ADDomainControllers watchlist.
   let domain_controllers = _GetWatchlist("ADDomainControllers") | project Account = tolower(SearchKey);
-  // Exclusions live in the ADDetectionExclusions watchlist. A row stops applying after its ExpiresOn date.
+  // Exclusions live in the ADDetectionExclusions watchlist. A row applies through its ExpiresOn date (UTC).
   let approved_replication_accounts = _GetWatchlist("ADDetectionExclusions")
       | where column_ifexists("Detection", "") == "dcsync"
-      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) > now()
+      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) + 1d > now()
       | project Value = tolower(SearchKey);
   let get_changes = "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2";
   let get_changes_all = "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2";

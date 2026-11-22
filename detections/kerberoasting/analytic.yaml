@@ -23,10 +23,10 @@ relevantTechniques:
   - T1558.003
 query: |
   let spn_threshold = 3;
-  // Exclusions live in the ADDetectionExclusions watchlist. A row stops applying after its ExpiresOn date.
+  // Exclusions live in the ADDetectionExclusions watchlist. A row applies through its ExpiresOn date (UTC).
   let excluded_requesters = _GetWatchlist("ADDetectionExclusions")
       | where column_ifexists("Detection", "") == "kerberoasting"
-      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) > now()
+      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) + 1d > now()
       | project Value = tolower(SearchKey);
   SecurityEvent
   | where EventID == 4769

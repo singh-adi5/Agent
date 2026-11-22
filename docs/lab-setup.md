@@ -174,6 +174,14 @@ Get-ADUser -Filter 'ServicePrincipalName -like "*"' -Properties ServicePrincipal
 
 The last command should list `krbtgt` and the three `svc-` accounts.
 
+Generate the rows for `watchlists/ADDomainControllers.csv` from the domain:
+
+```powershell
+Get-ADDomainController -Filter * | ForEach-Object {
+  "{0}$,{1},{2}" -f $_.Name.ToLower(), $_.HostName, ($_.ComputerObjectDN -replace ',', ';')
+}
+```
+
 ## 7. Attacker VM
 
 ```bash

@@ -43,7 +43,8 @@ Each detection's `tests.json` holds a list of cases:
 - `assert` (optional, `fire` cases only) lists column values that at least one returned
   row must have. It must name columns the analytic query outputs.
 - `watchlist` (optional) adds watchlist items for this case only, on top of the items in
-  [watchlists/](../watchlists/). Columns must exist in that watchlist's CSV.
+  [watchlists/](../watchlists/). Columns must exist in that watchlist's CSV. `{today}` in
+  a value becomes the run date, for testing expiry boundaries.
 - `make lint` rejects unknown columns and watchlists, and requires at least one `fire`
   and one `silent` case per detection.
 

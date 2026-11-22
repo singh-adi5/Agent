@@ -20,6 +20,26 @@
       ]
     },
     {
+      "name": "source address comes from the most recent logon with that logon ID",
+      "expect": "fire",
+      "assert": {"SourceIp": "10.10.1.10"},
+      "events": [
+        {"age_minutes": 5, "EventID": 4662, "ObjectServer": "DS", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "SubjectLogonId": "0x5a1f2", "Properties": "... 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2 ..."},
+        {"age_minutes": 50, "EventID": 4624, "LogonType": 3, "TargetLogonId": "0x5a1f2", "IpAddress": "10.10.1.99"},
+        {"age_minutes": 6, "EventID": 4624, "LogonType": 3, "TargetLogonId": "0x5a1f2", "IpAddress": "::ffff:10.10.1.10"}
+      ]
+    },
+    {
+      "name": "source address comes from the most recent logon with that logon ID",
+      "expect": "fire",
+      "assert": {"SourceIp": "10.10.1.10"},
+      "events": [
+        {"age_minutes": 5, "EventID": 4662, "ObjectServer": "DS", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "SubjectLogonId": "0x5a1f2", "Properties": "... 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2 ..."},
+        {"age_minutes": 50, "EventID": 4624, "LogonType": 3, "TargetLogonId": "0x5a1f2", "IpAddress": "10.10.1.99"},
+        {"age_minutes": 6, "EventID": 4624, "LogonType": 3, "TargetLogonId": "0x5a1f2", "IpAddress": "::ffff:10.10.1.10"}
+      ]
+    },
+    {
       "name": "a real domain controller replicating is normal",
       "expect": "silent",
       "events": [
@@ -31,6 +51,26 @@
       "expect": "silent",
       "events": [
         {"age_minutes": 5, "EventID": 4662, "ObjectServer": "DS", "SubjectUserName": "labadmin", "SubjectDomainName": "CONTOSO", "SubjectLogonId": "0x3e7", "Properties": "... some-other-guid-00000000-0000 ..."}
+      ]
+    },
+    {
+      "name": "replication account on the exclusion list",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "dcsync", "Value": "msol_1a2b3c4d5e6f", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": ""}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4662, "ObjectServer": "DS", "SubjectUserName": "MSOL_1a2b3c4d5e6f", "SubjectDomainName": "CONTOSO", "SubjectLogonId": "0x7c3", "Properties": "... 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2 ..."}
+      ]
+    },
+    {
+      "name": "replication account on the exclusion list",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "dcsync", "Value": "msol_1a2b3c4d5e6f", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": ""}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4662, "ObjectServer": "DS", "SubjectUserName": "MSOL_1a2b3c4d5e6f", "SubjectDomainName": "CONTOSO", "SubjectLogonId": "0x7c3", "Properties": "... 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2 ..."}
       ]
     },
     {

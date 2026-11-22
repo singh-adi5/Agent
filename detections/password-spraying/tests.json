@@ -59,6 +59,48 @@
         {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user11", "IpAddress": "10.10.1.250"},
         {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user12", "IpAddress": "10.10.1.250"}
       ]
+    },
+    {
+      "name": "source address on the exclusion list, such as a VPN concentrator",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "password-spraying", "Value": "10.10.1.250", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": "2099-01-01"}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user01", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user02", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user03", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user04", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user05", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user06", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user07", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user08", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user09", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user10", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user11", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user12", "IpAddress": "10.10.1.250"}
+      ]
+    },
+    {
+      "name": "source address on the exclusion list, such as a VPN concentrator",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "password-spraying", "Value": "10.10.1.250", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": "2099-01-01"}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user01", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user02", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user03", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user04", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user05", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user06", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user07", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user08", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user09", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user10", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user11", "IpAddress": "10.10.1.250"},
+        {"age_minutes": 5, "EventID": 4771, "Status": "0x18", "TargetUserName": "user12", "IpAddress": "10.10.1.250"}
+      ]
     }
   ]
 }

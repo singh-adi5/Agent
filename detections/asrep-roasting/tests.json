@@ -31,6 +31,26 @@
       "events": [
         {"age_minutes": 5, "EventID": 4768, "Status": "0x0", "TargetUserName": "svc-legacy@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "Computer": "dc01.contoso.local", "EventData": "<Data Name=\"PreAuthType\">0</Data><Data Name=\"TicketEncryptionType\">0x17</Data>"}
       ]
+    },
+    {
+      "name": "target account on the exclusion list",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "asrep-roasting", "Value": "svc-legacy", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": "2099-01-01"}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4768, "Status": "0x0", "TargetUserName": "svc-legacy@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "Computer": "dc01.contoso.local", "EventData": "<Data Name=\"PreAuthType\">0</Data><Data Name=\"TicketEncryptionType\">0x17</Data>"}
+      ]
+    },
+    {
+      "name": "target account on the exclusion list",
+      "expect": "silent",
+      "watchlist": [
+        {"alias": "ADDetectionExclusions", "Detection": "asrep-roasting", "Value": "svc-legacy", "Reason": "test case", "Owner": "detection-engineering", "ExpiresOn": "2099-01-01"}
+      ],
+      "events": [
+        {"age_minutes": 5, "EventID": 4768, "Status": "0x0", "TargetUserName": "svc-legacy@CONTOSO.LOCAL", "IpAddress": "10.10.1.10", "Computer": "dc01.contoso.local", "EventData": "<Data Name=\"PreAuthType\">0</Data><Data Name=\"TicketEncryptionType\">0x17</Data>"}
+      ]
     }
   ]
 }

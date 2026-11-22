@@ -37,6 +37,19 @@ Counts are now grouped by account and source, with the DCs kept as a column.
 **Non-deterministic enrichment.** The DCSync rule took `take_any(IpAddress)` for a logon
 ID. It now keeps the most recent logon, and a test asserts which address is reported.
 
+**A name is not an identity.** The first DCShadow rule identified the target of a 5136
+by its CN plus `$`. A CN is only unique within its container, so an object named after a
+DC in another container would have been treated as that DC and suppressed. The review
+that found it reproduced it on the emulator; the rule now matches 5136 targets on the
+full DN, and a test covers the collision. The same review checked the rules against
+public attack samples, which showed that `ObjectGUID` in the Mimikatz DCShadow events
+held a DN rather than a GUID, so it was not used as the key.
+
+**Boundaries in exclusion expiry.** `todatetime("2026-11-22") > now()` is already false
+on 22 November, so an exclusion ended a day earlier than documented. It now applies
+through its `ExpiresOn` date, a test uses the run date to hold that, and the linter
+only accepts plain `YYYY-MM-DD`: Python accepts ISO week dates that KQL cannot read.
+
 **Testing that a rule fires is not enough.** Early tests only counted rows. Fire cases
 now assert the values the rule reports (account, source address), and a
 wrong expectation was confirmed to fail.

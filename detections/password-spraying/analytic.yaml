@@ -24,10 +24,10 @@ relevantTechniques:
 query: |
   let account_threshold = 10;
   let max_attempts_per_account = 5;
-  // Exclusions live in the ADDetectionExclusions watchlist. A row stops applying after its ExpiresOn date.
+  // Exclusions live in the ADDetectionExclusions watchlist. A row applies through its ExpiresOn date (UTC).
   let excluded_sources = _GetWatchlist("ADDetectionExclusions")
       | where column_ifexists("Detection", "") == "password-spraying"
-      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) > now()
+      | where isempty(column_ifexists("ExpiresOn", "")) or todatetime(column_ifexists("ExpiresOn", "")) + 1d > now()
       | project Value = tolower(SearchKey);
   let kerberos_failures = SecurityEvent
       | where EventID == 4771

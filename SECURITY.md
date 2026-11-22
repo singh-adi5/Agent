@@ -1,33 +1,35 @@
 # Security policy
 
-## What this repository contains
+## Reporting
 
-Detection content and documentation for a lab. The `simulations/` directory holds
-commands for well-known public tools (Impacket, Rubeus, Kerbrute, Mimikatz). They
-generate the telemetry the detections are tested against.
+Report a committed secret, or a detection flaw that would mislead a defender, through
+GitHub private vulnerability reporting: **Security > Report a vulnerability** on this
+repository. Do not open a public issue for a committed secret.
 
-Run them only against a lab you own and built for this purpose. Running them against
-any system without written authorisation is illegal in most jurisdictions, including
-under the UK Computer Misuse Act 1990.
+## Authorised use
 
-## What this repository must never contain
+The detection READMEs name public offensive tools (Impacket, Rubeus, Kerbrute,
+Mimikatz) that generate the telemetry each detection is validated against. Use them
+only in a lab you own and built for the purpose. Using them against any system
+without written authorisation is an offence in most jurisdictions, including under
+the UK Computer Misuse Act 1990.
 
-- Tenant, subscription or workspace identifiers, workspace keys, passwords, tokens.
-- Hashes, tickets or other credential material dumped from a lab, even a throwaway one.
-- Screenshots that show any of the above. Redact before committing to `docs/evidence/`.
+## Content rules
 
-`.gitignore` blocks the common file types. Check `git diff --staged` before each commit.
+The repository must never contain:
 
-## Reporting a problem
+- tenant, subscription or workspace identifiers, keys, passwords or tokens;
+- hashes, tickets or other credential material, including from a disposable lab;
+- screenshots showing any of the above.
 
-If you find a secret committed here, or a detection that is wrong in a way that would
-mislead a defender, open a GitHub issue. For a committed secret, do not paste the
-value into the issue. Point to the file and line.
+Examples use placeholders such as `<WORKSPACE_NAME>`. `.gitignore` blocks key, ticket
+and hash files and local copies of deployment files.
 
 ## Supply chain
 
-- GitHub Actions are pinned to full commit SHAs.
-- The workflow token is read-only (`permissions: contents: read`) and the checkout
-  does not persist credentials.
-- Python and npm dependencies are pinned to exact versions. npm installs from the
-  lockfile with install scripts disabled.
+- GitHub Actions are pinned to commit SHAs; the Kusto emulator image to a digest.
+- Workflows run with a read-only token, hold no secrets and do not persist checkout
+  credentials.
+- Python dependencies install with `--require-hashes`. npm installs from the lockfile
+  with install scripts disabled.
+- Dependabot raises updates for actions, pip and npm.

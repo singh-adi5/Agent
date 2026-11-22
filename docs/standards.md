@@ -28,7 +28,7 @@ up, and the pipeline that validates the content.
 
 | A09 concern | In this repository |
 |---|---|
-| Auditable events are not logged | [SETUP.md](SETUP.md#5-turn-on-the-audit-policy) enables the audit subcategories that produce each event the detections read |
+| Auditable events are not logged | [Lab setup](lab-setup.md#5-turn-on-the-audit-policy) enables the audit subcategories that produce each event the detections read |
 | Logs are only stored locally | Events are forwarded off the host to a Log Analytics workspace by the Azure Monitor Agent |
 | No alerting on suspicious activity | Five scheduled analytics rules raise incidents with mapped entities |
 | Alerting thresholds are not effective | Thresholds are named values at the top of each query, and each rule has fire and no-fire test cases |
@@ -40,7 +40,7 @@ up, and the pipeline that validates the content.
 |---|---|---|
 | CICD-SEC-1 Insufficient Flow Control | Owner | Branch protection and required reviews are GitHub settings, not repository files. Turn on "require status checks" for `main` |
 | CICD-SEC-2 Inadequate Identity and Access Management | Owner | Account-level: use 2FA and keep collaborators minimal |
-| CICD-SEC-3 Dependency Chain Abuse | Addressed | Exact versions. Python installs with `--require-hashes`. npm installs from the lockfile with integrity hashes |
+| CICD-SEC-3 Dependency Chain Abuse | Addressed | Exact versions. Python installs with `--require-hashes`; npm installs from the lockfile with integrity hashes. Dependabot raises updates for actions, pip and npm |
 | CICD-SEC-4 Poisoned Pipeline Execution | Addressed | The workflow uses `pull_request`, not `pull_request_target`, holds no secrets, and npm install scripts are disabled |
 | CICD-SEC-5 Insufficient Pipeline-Based Access Controls | Addressed | Workflow token is `contents: read`. Checkout does not persist credentials |
 | CICD-SEC-6 Insufficient Credential Hygiene | Addressed | No secrets in the repository or the workflow. Placeholders only. `.gitignore` blocks key and ticket files |
@@ -76,17 +76,21 @@ up, and the pipeline that validates the content.
 | DE.CM Continuous Monitoring | Scheduled analytics rules over domain controller events |
 | DE.AE Adverse Event Analysis | Entity mapping, incident grouping and hunting queries |
 
-## Detection content quality
+## Detection-as-code practice
 
-Not a published standard, but the bar this repository holds itself to:
+Not a published standard. These are the rules the repository enforces in CI:
 
-- A query reads only columns checked against Microsoft's table reference.
-- A rule and its query file are identical, enforced in CI.
-- Every rule has at least one test case that must fire and one that must stay silent,
-  run on a real Kusto engine.
-- Every detection states its false positives, its gaps and its response steps.
-- Nothing is called proven until a live workspace screenshot is in
-  [`evidence/`](evidence/).
+- Each query exists once, in its YAML file. Nothing is copied between files.
+- A query reads only columns listed in `tools/securityevent.schema`, which was checked
+  against the Azure Monitor table reference, and must parse with Microsoft's Kusto
+  language service.
+- Entity mappings, custom details and alert titles reference only columns the query
+  outputs.
+- Every analytic rule has at least one case that must fire and one that must stay
+  silent, run on a Kusto engine.
+- Python tooling is linted with ruff, including its bandit security rules.
+- A detection is called lab-validated only once workspace evidence is in
+  [evidence/](evidence/).
 
 ## Limits
 

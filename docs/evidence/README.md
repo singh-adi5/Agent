@@ -1,29 +1,24 @@
 # Evidence
 
-A detection is only proven when it fires on real data. The rules and queries in this
-repository are validated by automated checks (parser, schema, query parity), but
-those checks do not run the queries against a live workspace. That last step is the
-lab owner's to do, and its proof goes here.
+Screenshots from a live Sentinel workspace, one set per detection. CI proves the
+queries are valid and behave correctly on test events; this folder proves they fire
+on real telemetry.
 
 ## Status
 
-**Not yet captured.** The detections have not been run against a live Sentinel
-workspace. See [PROGRESS.md](../../PROGRESS.md). When these screenshots are added,
-update the Status column in the [README results table](../../README.md#detections)
-from `Logic validated` to `Fired in lab`.
+Not yet captured. When a detection's set is committed, change its status in the
+[README coverage table](../../README.md#coverage) to "Lab-validated".
 
-## What to add
+## What to capture
 
-For each of the four detections, after running its
-[simulation](../../simulations/), capture:
+After running a detection's validation step ([simulation](../simulation.md)):
 
-1. **The incident.** Sentinel > Incidents, the incident opened by the rule, showing
-   its title, severity and the mapped entities (account, source address, host).
-2. **The query result.** Sentinel > Logs, the detection's `query.kql` returning the
-   simulated activity.
-3. **The rule page.** Analytics > the rule, showing it enabled with its schedule.
+1. **Incident.** Sentinel > Incidents: the incident raised by the rule, showing title,
+   severity and mapped entities.
+2. **Query result.** Sentinel > Logs: the rule's query returning the simulated activity.
+3. **Rule.** Sentinel > Analytics: the rule enabled, with its schedule.
 
-Suggested file names:
+File names:
 
 ```
 kerberoasting-incident.png      kerberoasting-logs.png
@@ -33,12 +28,12 @@ password-spraying-incident.png  password-spraying-logs.png
 golden-ticket-incident.png      golden-ticket-logs.png
 ```
 
-A short `evidence.md` noting the date each was captured and the lab build helps a
-reviewer place them.
+Add `evidence.md` with the capture date for each set and the lab build used.
 
-## Before you commit a screenshot
+## Redaction
 
-- Redact any real public IP address, tenant or subscription ID, or workspace name.
-- Crop out the Azure portal account name in the top-right.
-- Never include a screenshot that shows a hash, a ticket, or a password, even from a
-  disposable lab. See [SECURITY.md](../../SECURITY.md).
+Before committing a screenshot:
+
+- Redact public IP addresses, tenant and subscription IDs, and workspace names.
+- Crop out the portal account name.
+- Exclude anything showing a hash, ticket or password, even from a disposable lab.

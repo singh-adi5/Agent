@@ -1,14 +1,13 @@
 # Lab setup
 
-Stand up the lab end to end: network, domain controller, attacker host, Sentinel
-workspace, agent and collection rule. Allow about two hours the first time.
+Builds the lab end to end: network, domain controller, attacker host, Sentinel
+workspace, Azure Monitor Agent and Data Collection Rule. Allow about two hours.
 
-Commands are Azure CLI in Bash (Azure Cloud Shell works) unless a step says
-PowerShell on DC01. Replace every `<PLACEHOLDER>`. Do not commit the real values.
+Commands are Azure CLI in Bash (Cloud Shell works) unless marked as PowerShell on
+DC01. Replace every `<PLACEHOLDER>` and keep the real values out of the repository.
 
-> This guide was written from the Azure and Windows documentation and has not yet
-> been run start to finish by the author. If a step fails, open an issue or fix it
-> in a pull request. See [PROGRESS.md](../PROGRESS.md) for what is and is not verified.
+> Status: not yet run end to end against a fresh subscription. Report any step that
+> fails as an issue.
 
 ## Cost
 
@@ -69,9 +68,9 @@ The command prompts for the admin password. Use a long random one and keep it in
 password manager. `--assign-identity` gives the VM the managed identity that the
 Azure Monitor Agent needs.
 
-Windows Server 2022 is used on purpose. It still issues RC4 service tickets on
-request, which the Kerberoasting simulation depends on. Newer releases restrict RC4
-and may not reproduce that detection without extra configuration.
+Windows Server 2022 is chosen because it still issues RC4 service tickets on
+request, which the Kerberoasting and AS-REP roasting validation depends on. Newer
+releases restrict RC4 and may need extra configuration to reproduce those detections.
 
 Azure renames the built-in Administrator account (RID 500) to the admin username
 you choose. In this lab that account is `labadmin`. There is no account called
@@ -133,7 +132,7 @@ Active Directory Users and Computers (Advanced Features on).
 
 ## 6. Create lab accounts
 
-The simulations need accounts to attack. On DC01:
+The validation steps need accounts to target. On DC01:
 
 ```powershell
 $password = Read-Host -AsSecureString "Password for the lab accounts"
@@ -153,6 +152,11 @@ New-ADUser -Name "alice.lab" -SamAccountName "alice.lab" `
   New-ADUser -Name $_ -SamAccountName $_ -AccountPassword $password -Enabled $true `
     -ServicePrincipalNames "$($_.Replace('svc-', ''))/app01.contoso.local"
 }
+
+# One legacy account for AS-REP roasting. Pre-authentication is disabled only
+# during that validation step.
+New-ADUser -Name "svc-legacy" -SamAccountName "svc-legacy" `
+  -AccountPassword $password -Enabled $true
 
 Get-ADUser -Filter 'ServicePrincipalName -like "*"' -Properties ServicePrincipalName |
   Select-Object SamAccountName, ServicePrincipalName
@@ -234,7 +238,7 @@ az vm extension set --resource-group $RG --vm-name dc01 \
 SUB=$(az account show --query id -o tsv)
 sed -e "s/<LOCATION>/$LOCATION/" -e "s/<SUBSCRIPTION_ID>/$SUB/" \
     -e "s/<RESOURCE_GROUP>/$RG/" -e "s/<WORKSPACE_NAME>/$WORKSPACE/" \
-    deployment/dcr-securityevent.json > dcr-securityevent.local.json
+    deploy/dcr-securityevent.json > dcr-securityevent.local.json
 
 az monitor data-collection rule create --resource-group $RG \
   --name dcr-adlab-securityevent --location $LOCATION \
@@ -266,8 +270,8 @@ You should see 4624, 4768 and 4769 at minimum. If the table is empty:
 - Confirm the DCR lists `dc01` under **Resources**.
 - Confirm the audit policy from step 5 with `auditpol /get /category:*`.
 
-Next: deploy the rules with [`deployment/deploy-rules.md`](../deployment/deploy-rules.md),
-then run the guides in [`simulations/`](../simulations/).
+Next: deploy the rules ([deployment](deployment.md)), then validate each detection
+([simulation](simulation.md)).
 
 ## 11. Teardown
 
@@ -284,5 +288,5 @@ Delete everything when you are finished:
 az group delete --name $RG --yes --no-wait
 ```
 
-The lab holds deliberately weak accounts and, after the simulations, a compromised
-`krbtgt` key. Do not connect it to any other network, and do not reuse it.
+After validation the lab holds weak accounts and a compromised `krbtgt` key. Do not
+connect it to any other network or reuse it.
